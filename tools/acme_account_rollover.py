@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+#pylint: disable=multiple-imports, too-many-statements
+"""Script to rollover two ACME account keys"""
+
 import sys, argparse, subprocess, json, base64, binascii, re, copy, logging, requests
 
 LOGGER = logging.getLogger("acme_account_rollover")
@@ -55,13 +58,14 @@ def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log
             del protected["jwk"]
 
         if not is_inner:
-            protected["nonce"] = jws_nonce or requests.get(acme_config["newNonce"]).headers['Replay-Nonce']
+            protected["nonce"] = (jws_nonce
+                                  or requests.get(acme_config["newNonce"]).headers['Replay-Nonce'])
         protected["url"] = url
         protected64 = _b64(json.dumps(protected).encode("utf8"))
         signature = _openssl("dgst", ["-sha256", "-sign", keypath],
                              "{0}.{1}".format(protected64, payload64).encode("utf8"))
         signedjws = {
-            "protected": protected64, "payload": payload64,"signature": _b64(signature)
+            "protected": protected64, "payload": payload64, "signature": _b64(signature)
         }
         return signedjws
 
@@ -100,30 +104,34 @@ def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log
 
     log.info("Ask CA provider account url.")
     http_response, result = _send_signed_request(acme_config["newAccount"], old_accountkeypath, {
-        "onlyReturnExisting": True })
+        "onlyReturnExisting": True})
     if http_response.status_code == 200:
         old_jws_header["kid"] = http_response.headers["Location"]
         new_jws_header["kid"] = http_response.headers["Location"]
     else:
-        raise ValueError("Error looking or account URL: {0} {1}".format(http_response.status_code, result))
+        raise ValueError("Error looking or account URL: {0} {1}"
+                         .format(http_response.status_code, result))
 
     log.info("Rolls over account key...")
     # The signature by the new key covers the account URL and the old key,
     # signifying a request by the new key holder to take over the account from
     # the old key holder.
-    inner_payload = _sign_request(acme_config["keyChange"], new_accountkeypath, {
-        "account": old_jws_header["kid"],
-        "oldKey": old_jws_header["jwk"] },
-        is_inner = True)
+    inner_payload = _sign_request(acme_config["keyChange"], new_accountkeypath,
+                                  {"account": old_jws_header["kid"],
+                                   "oldKey": old_jws_header["jwk"]},
+                                  is_inner=True)
     # The signature by the old key covers this request and its signature, and
     # indicates the old key holder's assent to the roll-over request.
-    http_response, result  = _send_signed_request(acme_config["keyChange"], old_accountkeypath, inner_payload)
+    http_response, result = _send_signed_request(acme_config["keyChange"],
+                                                 old_accountkeypath, inner_payload)
 
     if http_response.status_code != 200:
-        raise ValueError("Error rolling over account key: {0} {1}".format(http_response.status_code, result))
+        raise ValueError("Error rolling over account key: {0} {1}"
+                         .format(http_response.status_code, result))
     log.info("Account keys rolled over !")
 
 def main(argv):
+    """Parse arguments and rollover account keys"""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Tiny ACME client to roll over an ACME account key with another one.",
@@ -133,11 +141,17 @@ It will need to have access to the ACME private account keys, so PLEASE READ THR
 It's around 150 lines, so it won't take long.
 
 Example: roll over account key from account.key to newaccount.key:
-  python3 acme_account_rollover.py --current account.key --new newaccount.key --acme-directory https://acme-staging-v02.api.letsencrypt.org/directory""")
-    parser.add_argument("--current", required = True, help="path to the current private account key")
-    parser.add_argument("--new", required = True, help="path to the newer private account key to register")
-    parser.add_argument("--acme-directory", required = True, help="ACME directory URL of the ACME server where to remove the key")
-    parser.add_argument("--quiet", action="store_const", const=logging.ERROR, help="suppress output except for errors")
+  python3 acme_account_rollover.py \
+--current account.key --new newaccount.key \
+--acme-directory https://acme-staging-v02.api.letsencrypt.org/directory""")
+    parser.add_argument("--current", required=True,
+                        help="path to the current private account key")
+    parser.add_argument("--new", required=True,
+                        help="path to the newer private account key to register")
+    parser.add_argument("--acme-directory", required=True,
+                        help="ACME directory URL of the ACME server where to remove the key")
+    parser.add_argument("--quiet", action="store_const", const=logging.ERROR,
+                        help="suppress output except for errors")
     args = parser.parse_args(argv)
 
     LOGGER.setLevel(args.quiet or logging.INFO)
