@@ -7,40 +7,41 @@ import sys, argparse, subprocess, json, base64, binascii, re, copy, logging, req
 LOGGER = logging.getLogger("acme_account_rollover")
 LOGGER.addHandler(logging.StreamHandler())
 
+def _b64(text):
+    """"Encodes string as base64 as specified in ACME RFC."""
+    return base64.urlsafe_b64encode(text).decode("utf8").rstrip("=")
+
+def _openssl(command, options, communicate=None):
+    """Run openssl command line and raise IOError on non-zero return."""
+    openssl = subprocess.Popen(["openssl", command] + options,
+                               stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+    out, err = openssl.communicate(communicate)
+    if openssl.returncode != 0:
+        raise IOError("OpenSSL Error: {0}".format(err))
+    return out
+
+def _jws_from_key(accountkeypath):
+    """Parses account key to create JWS header to authenticate user"""
+    accountkey = _openssl("rsa", ["-in", accountkeypath, "-noout", "-text"])
+    pub_hex, pub_exp = re.search(
+        r"modulus:\r?\n\s+00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
+        accountkey.decode("utf8"), re.MULTILINE | re.DOTALL).groups()
+    pub_exp = "{0:x}".format(int(pub_exp))
+    pub_exp = "0{0}".format(pub_exp) if len(pub_exp) % 2 else pub_exp
+    return {
+        "alg": "RS256",
+        "jwk": {
+            "e": _b64(binascii.unhexlify(pub_exp.encode("utf-8"))),
+            "kty": "RSA",
+            "n": _b64(binascii.unhexlify(re.sub(r"(\s|:)", "", pub_hex).encode("utf-8"))),
+        },
+        "kid": None,
+    }
+
 def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log=LOGGER):
-    def _b64(b):
-        """"Encodes string as base64 as specified in ACME RFC """
-        return base64.urlsafe_b64encode(b).decode("utf8").rstrip("=")
-
-    def _openssl(command, options, communicate=None):
-        """Run openssl command line and raise IOError on non-zero return."""
-        openssl = subprocess.Popen(["openssl", command] + options,
-                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = openssl.communicate(communicate)
-        if openssl.returncode != 0:
-            raise IOError("OpenSSL Error: {0}".format(err))
-        return out
-
-    def _jws_header(accountkeypath):
-        """Creates a JWS header according to a specific account key path."""
-        accountkey = _openssl("rsa", ["-in", accountkeypath, "-noout", "-text"])
-        pub_hex, pub_exp = re.search(
-            r"modulus:\r?\n\s+00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
-            accountkey.decode("utf8"), re.MULTILINE | re.DOTALL).groups()
-        pub_exp = "{0:x}".format(int(pub_exp))
-        pub_exp = "0{0}".format(pub_exp) if len(pub_exp) % 2 else pub_exp
-        jws_header = {
-            "alg": "RS256",
-            "jwk": {
-                "e": _b64(binascii.unhexlify(pub_exp.encode("utf-8"))),
-                "kty": "RSA",
-                "n": _b64(binascii.unhexlify(re.sub(r"(\s|:)", "", pub_hex).encode("utf-8"))),
-            },
-            "kid": None
-        }
-        return jws_header
-
-    def _sign_request(url, keypath, payload, is_inner = False):
+    """Rollover account keys."""
+    def _sign_request(url, keypath, payload, is_inner=False):
         """Signs request with a specific right account key."""
         nonlocal jws_nonce
         if payload == "": # on POST-as-GET, final payload has to be just empty string
@@ -84,19 +85,18 @@ def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log
         return response, response.json()
 
     # main code
-    adtheaders =  {'User-Agent': 'acme-dns-tiny/2.0'}
-    joseheaders=copy.deepcopy(adtheaders)
-    joseheaders['Content-Type']='application/jose+json'
+    adtheaders = {'User-Agent': 'acme-dns-tiny/2.0'}
+    joseheaders = copy.deepcopy(adtheaders)
+    joseheaders['Content-Type'] = 'application/jose+json'
 
     log.info("Fetch informations from the ACME directory.")
-    directory = requests.get(acme_directory, headers=adtheaders)
-    acme_config = directory.json()
+    acme_config = requests.get(acme_directory, headers=adtheaders).json()
 
     log.info("Parsing current account key...")
-    old_jws_header = _jws_header(old_accountkeypath)
+    old_jws_header = _jws_from_key(old_accountkeypath)
 
     log.info("Parsing new account key...")
-    new_jws_header = _jws_header(new_accountkeypath)
+    new_jws_header = _jws_from_key(new_accountkeypath)
     del new_jws_header["kid"]
 
     jws_nonce = None
