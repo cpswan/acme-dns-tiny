@@ -79,10 +79,9 @@ def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log
             response = error.response
         finally:
             jws_nonce = response.headers['Replay-Nonce']
-            try:
-                return response, response.json()
-            except ValueError as error:
-                return response, json.dumps({})
+        if not response.text:
+            return response, json.dumps({})
+        return response, response.json()
 
     # main code
     adtheaders =  {'User-Agent': 'acme-dns-tiny/2.0'}
