@@ -90,7 +90,7 @@ def _get_domain_names(csr_file):
         for san in subject_alt_names.group(1).split(", "):
             if san.startswith("DNS:"):
                 domain_names.add(san[4:])
-    if len(domain_names) == 0:
+    if not domain_names:
         raise ValueError("Didn't find any domain to validate in the provided CSR.")
     return domain_names
 
