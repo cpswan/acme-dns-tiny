@@ -37,6 +37,7 @@ lint:
     - pylint3 tools/acme_account_deactivate.py
     - pylint3 tools/acme_account_rollover.py
     - pylint3 tests/test_acme_dns_tiny.py
+    - pylint3 tests/test_acme_account_deactivate.py
 
 jessie:
   extends: .test
