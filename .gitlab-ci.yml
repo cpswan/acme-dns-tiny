@@ -12,7 +12,8 @@ stages:
 .test:
   stage: test
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends python3-dnspython python3-configargparse python3-coverage
+    - apt-get update && apt-get install -y --no-install-recommends \
+    python3-dnspython python3-requests python3-configargparse python3-coverage
   script:
     - python3-coverage run --source ./ -m unittest -v tests.test_acme_dns_tiny tests.test_acme_account_rollover tests.test_acme_account_deactivate
     - python3-coverage report --include=acme_dns_tiny.py,tools/acme_account_rollover.py,tools/acme_account_deactivate.py
@@ -31,7 +32,8 @@ compile:
 lint:
   extends: .check
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends pylint3 python3-dnspython python3-configargparse python3-coverage
+    - apt-get update && apt-get install -y --no-install-recommends pylint3 \
+    python3-dnspython python3-requests python3-configargparse python3-coverage
   script:
     - pylint3 acme_dns_tiny.py
     - pylint3 tools/acme_account_deactivate.py
