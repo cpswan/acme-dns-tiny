@@ -31,7 +31,7 @@ compile:
 lint:
   extends: .check
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends pylint3
+    - apt-get update && apt-get install -y --no-install-recommends pylint3 python3-dnspython python3-configargparse python3-coverage
   script:
     - pylint3 acme_dns_tiny.py
     - pylint3 tools/acme_account_deactivate.py
