@@ -22,8 +22,8 @@ def _openssl(command, options, communicate=None):
         raise IOError("OpenSSL Error: {0}".format(err))
     return out
 
-def _get_signature(accountkeypath):
-    """Parses account key to create user's Json Web Signature"""
+def _get_private_signature(accountkeypath):
+    LOG.info("Read account key file to retrieve private signature (JSON Web Signature).")
     accountkey = _openssl("rsa", ["-in", accountkeypath, "-noout", "-text"])
     pub_hex, pub_exp = re.search(
         r"modulus:\r?\n\s+00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
@@ -43,26 +43,26 @@ def _get_signature(accountkeypath):
     jwk_thumbprint = _base64(hashlib.sha256(accountkey_json.encode("utf8")).digest())
     return {"header": jws_header, "thumbprint": jwk_thumbprint}
 
-def _get_dns_config(config):
+def _get_private_dns_config(config_tsigkeyring, config_dns):
     LOG.info("Prepare DNS resolver and private keyring.")
-    keyring = dns.tsigkeyring.from_text(
-        {config["TSIGKeyring"]["KeyName"]: config["TSIGKeyring"]["KeyValue"]})
+    keyring = dns.tsigkeyring.from_text({
+        config_tsigkeyring["KeyName"]: config_tsigkeyring.pop("KeyValue")})
     resolver = dns.resolver.Resolver(configure=False)
     resolver.retry_servfail = True
     nameserver = []
     try:
         nameserver = [ipv4_rrset.to_text() for ipv4_rrset in
-                      dns.resolver.query(config["DNS"]["Host"], rdtype="A")]
+                      dns.resolver.query(config_dns["Host"], rdtype="A")]
         nameserver = nameserver + [ipv6_rrset.to_text() for ipv6_rrset in
-                                   dns.resolver.query(config["DNS"]["Host"], rdtype="AAAA")]
+                                   dns.resolver.query(config_dns["Host"], rdtype="AAAA")]
     except dns.exception.DNSException:
         LOG.info("A and/or AAAA DNS resources not found for configured dns host: we will use \
 either resource found if one exists or directly the DNS Host configuration.")
     if not nameserver:
-        nameserver = [config["DNS"]["Host"]]
+        nameserver = [config_dns["Host"]]
     resolver.nameservers = nameserver
 
-    return {"keyring": keyring, "resolver": resolver, "TTL": config["DNS"].getint("TTL")}
+    return {"keyring": keyring, "resolver": resolver, "TTL": config_dns.getint("TTL")}
 
 def _update_dns(config, keyring, rrset, action):
     """Updates DNS resource by adding or deleting resource."""
@@ -76,10 +76,10 @@ def _update_dns(config, keyring, rrset, action):
     response = dns.query.tcp(dns_update, config["DNS"]["Host"], config.getint("DNS", "Port"))
     return response
 
-def _get_domain_names(config):
+def _get_domain_names(csr_file):
     LOG.info("Read CSR file to find domain names to validate.")
     csr = _openssl("req",
-                   ["-in", config["acmednstiny"]["CSRFile"], "-noout", "-text"]).decode("utf8")
+                   ["-in", csr_file, "-noout", "-text"]).decode("utf8")
     domain_names = set()
     common_name = re.search(r"Subject:.*?\s+?CN\s*?=\s*?([^\s,;/]+)", csr)
     if common_name is not None:
@@ -128,6 +128,7 @@ def _send_signed_request(url, payload, acme_config):
     return {"response": response, "json": response.json()}
 
 def _acme_register_account(config, acme_config):
+    LOG.info("Try to register ACME Account to get the account key identifier.")
     account_request = {}
     terms_service = acme_config.get("meta", {}).get("termsOfService", "")
     if terms_service:
@@ -166,6 +167,7 @@ def _acme_register_account(config, acme_config):
                              .format(result["response"].status_code, result["json"]))
 
 def _acme_request_order(domain_names, acme_config):
+    LOG.info("Request ACME server to give a new order to validate domain_names.")
     new_order = {"identifiers": [{"type": "dns", "value": domain} for domain in domain_names]}
     result = _send_signed_request(acme_config["directory"]["newOrder"], new_order, acme_config)
     order = result["response"]["json"]
@@ -186,7 +188,7 @@ then follow your CA instructions: {2}"
     return {"order": order, "location": location}
 
 def _acme_prepare_challenge(authz, config, dns_config, acme_config):
-    """Prepare DNS resources to meet challenge for the authz"""
+    LOG.info("Prepare DNS resource to meet challenge for authorization: %s", authz)
     result = _send_signed_request(authz, "", acme_config)
     if result["response"].status_code != 200:
         raise ValueError("Error fetching challenges: {0} {1}"
@@ -221,7 +223,7 @@ will install TXT directly on %s", dnsrr_domain, type(dnsexception).__name__)
             "keyauthorization": keyauthorization, "dnsrr_set": dnsrr_set, "text": keydigest64}
 
 def _verify_challenge(challenge, dns_config):
-    """Self verify if challenge is well met"""
+    LOG.info("Self verify if challenge is well installed for domain %s.", challenge["domain"])
     LOG.info("Wait for 1 TTL (%s seconds) to ensure DNS cache is cleared.", dns_config["TTL"])
     time.sleep(dns_config["TTL"])
     resolver = dns_config["resolver"]
@@ -247,6 +249,7 @@ nameservers: %s', number_check_fail, challenge["text"], resolver.nameservers)
                 time.sleep(dns_config["TTL"])
 
 def _acme_validate_challenge(challenge, acme_config):
+    LOG.info("Asking the ACME server to validate challenge for domain %s.", challenge["domain"])
     result = _send_signed_request(challenge["challenge"]["url"],
                                   {"keyAuthorization": challenge["keyauthorization"]},
                                   acme_config)
@@ -268,6 +271,7 @@ def _acme_validate_challenge(challenge, acme_config):
                 challenge["domain"], result["json"]))
 
 def _acme_finalize_order(order, config, acme_config):
+    LOG.info("Request ACME server to finalize the order (all chalenge have been met).")
     csr_der = _base64(_openssl("req", ["-in", config["acmednstiny"]["CSRFile"],
                                        "-outform", "DER"]))
     result = _send_signed_request(order["order"]["finalize"], {"csr": csr_der}, acme_config)
@@ -291,8 +295,12 @@ def _acme_finalize_order(order, config, acme_config):
 
 def get_crt(config):
     """Get ACME certificate by resolving DNS challenge"""
+
+    domain_names = _get_domain_names(config["acmednstiny"]["CSRFile"])
+    dns_config = _get_private_dns_config(config["TSIGKeyring"], config["DNS"])
+
     acme_config = {
-        "account_key_file": config["acmednstiny"]["AccountKeyFile"],
+        "account_key_file": config["acmednstiny"].pop("AccountKeyFile"),
         "nonce": None,
         "headers": {'User-Agent': 'acme-dns-tiny/2.1',
                     'Accept-Language': config["acmednstiny"].get("Language", "en")}}
@@ -300,17 +308,9 @@ def get_crt(config):
     LOG.info("Fetch informations from the ACME directory.")
     acme_config["directory"] = requests.get(config["acmednstiny"]["ACMEDirectory"],
                                             headers=acme_config["headers"]).json()
-
-    dns_config = _get_dns_config(config)
-    domain_names = _get_domain_names(config)
-
-    LOG.info("Read account key.")
-    acme_config["signature"] = _get_signature(config["acmednstiny"]["AccountKeyFile"])
-
-    LOG.info("Register ACME Account to get the key identifier.")
+    acme_config["signature"] = _get_private_signature(acme_config["account_key_file"])
     _acme_register_account(config, acme_config)
 
-    LOG.info("Request to the ACME server an order to validate domain_names.")
     order = _acme_request_order(domain_names, acme_config)
 
     for authz in order["order"]["authorizations"]:
@@ -318,18 +318,13 @@ def get_crt(config):
             LOG.info("No challenge to process: order is already ready.")
             break
 
-        LOG.info("Process challenge for authorization: %s", authz)
         challenge = _acme_prepare_challenge(authz, config, dns_config, acme_config)
-
         try:
-            LOG.info("Self verify if challenge is well installed.")
             _verify_challenge(challenge, dns_config)
-            LOG.info("Asking ACME server to validate challenge.")
             _acme_validate_challenge(challenge, acme_config)
         finally:
             _update_dns(config, dns_config["keyring"], challenge["dnsrr_set"], "delete")
 
-    LOG.info("Request to finalize the order (all chalenge have been completed)")
     _acme_finalize_order(order, config, acme_config)
 
     acme_config["signature"]["header"]['Accept'] = config["acmednstiny"].get(
