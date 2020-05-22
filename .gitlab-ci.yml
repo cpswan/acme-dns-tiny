@@ -21,12 +21,12 @@ stages:
     - merge_requests
     - master
 
-syntax:
+compile:
   extends: .check
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends python3
   script:
-    - python3 -m py_compile acme_dns_tiny.py tools/acme_account_deactivate.py tools/acme_account_rollover.py
+    - python3 -m py_compile acme_dns_tiny.py tools/*.py tests/*.py
 
 lint:
   extends: .check
@@ -36,6 +36,7 @@ lint:
     - pylint3 acme_dns_tiny.py
     - pylint3 tools/acme_account_deactivate.py
     - pylint3 tools/acme_account_rollover.py
+    - pylint3 tests/config_factory.py
     - pylint3 tests/test_acme_dns_tiny.py
     - pylint3 tests/test_acme_account_deactivate.py
 

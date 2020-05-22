@@ -41,8 +41,8 @@ class TestACMEAccountRollover(unittest.TestCase):
     def test_success_account_rollover(self):
         """ Test success account key rollover """
         with self.assertLogs(level='INFO') as accountrolloverlog:
-            tools.acme_account_rollover.main(["--current", self.configs['oldaccountkey'],
-                                              "--new", self.configs['newaccountkey'],
+            tools.acme_account_rollover.main(["--current", self.configs['old_account_key'],
+                                              "--new", self.configs['new_account_key'],
                                               "--acme-directory", ACMEDIRECTORY])
         self.assertIn("INFO:acme_account_rollover:Account keys rolled over !",
                       accountrolloverlog.output)

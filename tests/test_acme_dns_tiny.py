@@ -46,7 +46,7 @@ class TestACMEDNSTiny(unittest.TestCase):
                 os.remove(parser["acmednstiny"]["AccountKeyFile"])
                 os.remove(parser["acmednstiny"]["CSRFile"])
                 # for each configuraiton, deactivate the account key
-                if conffile != "cnameCSR":
+                if conffile != "cname_csr":
                     account_deactivate(parser["acmednstiny"]["AccountKeyFile"], ACMEDIRECTORY)
                 os.remove(conffile)
             except: # pylint: disable=bare-except
@@ -71,7 +71,7 @@ class TestACMEDNSTiny(unittest.TestCase):
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
-        acme_dns_tiny.main([self.configs['goodCName'], "--verbose"])
+        acme_dns_tiny.main([self.configs['good_cname'], "--verbose"])
         certchain = sys.stdout.getvalue()
 
         sys.stdout.close()
@@ -84,7 +84,7 @@ class TestACMEDNSTiny(unittest.TestCase):
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
-        acme_dns_tiny.main([self.configs['goodCNameWithoutContacts'], "--verbose"])
+        acme_dns_tiny.main([self.configs['good_cname_without_contacts'], "--verbose"])
         certchain = sys.stdout.getvalue()
 
         sys.stdout.close()
@@ -97,8 +97,8 @@ class TestACMEDNSTiny(unittest.TestCase):
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
-        acme_dns_tiny.main(["--csr", self.configs['cnameCSR'],
-                            self.configs['goodCNameWithoutCSR'], "--verbose"])
+        acme_dns_tiny.main(["--csr", self.configs['cname_csr'],
+                            self.configs['good_cname_without_csr'], "--verbose"])
         certchain = sys.stdout.getvalue()
 
         sys.stdout.close()
@@ -111,7 +111,7 @@ class TestACMEDNSTiny(unittest.TestCase):
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
-        acme_dns_tiny.main([self.configs['wildCName'], "--verbose"])
+        acme_dns_tiny.main([self.configs['wild_cname'], "--verbose"])
         certchain = sys.stdout.getvalue()
 
         sys.stdout.close()
@@ -141,7 +141,7 @@ or directly the DNS Host configuration.", adnslog.output)
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
-        acme_dns_tiny.main([self.configs['goodSAN'], "--verbose"])
+        acme_dns_tiny.main([self.configs['good_san'], "--verbose"])
         certchain = sys.stdout.getvalue()
 
         sys.stdout.close()
@@ -149,12 +149,12 @@ or directly the DNS Host configuration.", adnslog.output)
 
         self._assert_cert_chain(certchain)
 
-    def test_success_wildsan(self):
+    def test_success_wild_san(self):
         """ Successfully issue a certificate via wildcard in subject alt name """
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
-        acme_dns_tiny.main([self.configs['wildSAN']])
+        acme_dns_tiny.main([self.configs['wild_san']])
         certchain = sys.stdout.getvalue()
 
         sys.stdout.close()
@@ -165,7 +165,7 @@ or directly the DNS Host configuration.", adnslog.output)
     def test_success_cli(self):
         """ Successfully issue a certificate via command line interface """
         certout, _ = subprocess.Popen([
-            "python3", "acme_dns_tiny.py", self.configs['goodCName'],
+            "python3", "acme_dns_tiny.py", self.configs['good_cname'],
             "--verbose"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
 
         certchain = certout.decode("utf8")
@@ -175,8 +175,8 @@ or directly the DNS Host configuration.", adnslog.output)
     def test_success_cli_with_csr_option(self):
         """ Successfully issue a certificate via command line interface using CSR option"""
         certout, _ = subprocess.Popen([
-            "python3", "acme_dns_tiny.py", "--csr", self.configs['cnameCSR'],
-            self.configs['goodCNameWithoutCSR'], "--verbose"
+            "python3", "acme_dns_tiny.py", "--csr", self.configs['cname_csr'],
+            self.configs['good_cname_without_csr'], "--verbose"
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
 
         certchain = certout.decode("utf8")
@@ -186,23 +186,23 @@ or directly the DNS Host configuration.", adnslog.output)
     def test_weak_key(self):
         """ Let's Encrypt rejects weak keys """
         self.assertRaisesRegex(ValueError, "key too small", acme_dns_tiny.main,
-                               [self.configs['weakKey'], "--verbose"])
+                               [self.configs['weak_key'], "--verbose"])
 
     def test_account_key_domain(self):
         """ Can't use the account key for the CSR """
         self.assertRaisesRegex(ValueError,
                                "certificate public key must be different than account key",
-                               acme_dns_tiny.main, [self.configs['accountAsDomain'], "--verbose"])
+                               acme_dns_tiny.main, [self.configs['account_as_domain'], "--verbose"])
 
     def test_failure_dns_update_tsigkeyname(self):
         """ Fail to update DNS records by invalid TSIG Key name """
         self.assertRaisesRegex(ValueError, "Error updating DNS",
-                               acme_dns_tiny.main, [self.configs['invalidTSIGName'], "--verbose"])
+                               acme_dns_tiny.main, [self.configs['invalid_tsig_name'], "--verbose"])
 
     def test_failure_notcompleted_configuration(self):
         """ Configuration file have to be completed """
         self.assertRaisesRegex(ValueError, r"Some required settings are missing.",
-                               acme_dns_tiny.main, [self.configs['missingDNS'], "--verbose"])
+                               acme_dns_tiny.main, [self.configs['missing_dns'], "--verbose"])
 
 if __name__ == "__main__":
     unittest.main()
