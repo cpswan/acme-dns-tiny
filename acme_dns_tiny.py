@@ -130,7 +130,7 @@ def _send_signed_request(url, payload, acme_config):
 def _acme_register_account(config, acme_config):
     LOG.info("Try to register ACME Account to get the account key identifier.")
     account_request = {}
-    terms_service = acme_config.get("meta", {}).get("termsOfService", "")
+    terms_service = acme_config["directory"].get("meta", {}).get("termsOfService", "")
     if terms_service:
         account_request["termsOfServiceAgreed"] = True
         LOG.warning(
