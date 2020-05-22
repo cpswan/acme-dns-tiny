@@ -13,7 +13,7 @@ stages:
   stage: lets_encrypt_staging
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends
-      python3-dnspython python3-requests python3-configargparse python3-coverage
+      python3-minimal python3-dnspython python3-requests python3-coverage
   script:
     - python3-coverage run --source ./ -m unittest -v tests.test_acme_dns_tiny
       tests.test_acme_account_rollover tests.test_acme_account_deactivate
@@ -29,7 +29,8 @@ stages:
 compile:
   extends: .check
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends python3
+    - apt-get update && apt-get install -y --no-install-recommends
+      python3-minimal
   script:
     - python3 -m py_compile acme_dns_tiny.py tools/*.py tests/*.py
 
@@ -37,7 +38,7 @@ lint:
   extends: .check
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends pylint3
-      python3-dnspython python3-requests python3-configargparse python3-coverage
+      python3-minimal python3-dnspython python3-requests
   script:
     - pylint3 acme_dns_tiny.py
     - pylint3 tools/acme_account_deactivate.py
