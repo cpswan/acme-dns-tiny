@@ -1,0 +1,63 @@
+stages:
+  - check
+  - lets_encrypt_staging
+
+.check:
+  stage: check
+  image: debian:buster-slim
+  only:
+    - merge_requests
+    - master
+
+.lets_encrypt_staging:
+  stage: lets_encrypt_staging
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends
+      python3-minimal python3-dnspython python3-requests python3-coverage
+  script:
+    - python3-coverage run --source ./ -m unittest -v tests.test_acme_dns_tiny
+      tests.test_acme_account_rollover tests.test_acme_account_deactivate
+    - python3-coverage report
+      --include=acme_dns_tiny.py
+      --include=tools/acme_account_rollover.py
+      --include=tools/acme_account_deactivate.py
+    - python3-coverage html
+  only:
+    - merge_requests
+    - master
+
+compile:
+  extends: .check
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends
+      python3-minimal
+  script:
+    - python3 -m py_compile acme_dns_tiny.py tools/*.py tests/*.py
+
+lint:
+  extends: .check
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends pylint3
+      python3-minimal python3-dnspython python3-requests
+  script:
+    - pylint3 acme_dns_tiny.py
+    - pylint3 tools/acme_account_deactivate.py
+    - pylint3 tools/acme_account_rollover.py
+    - pylint3 tests/config_factory.py
+    - pylint3 tests/test_acme_dns_tiny.py
+    - pylint3 tests/test_acme_account_deactivate.py
+
+jessie:
+  extends: .lets_encrypt_staging
+  image: debian:jessie-slim
+
+stretch:
+  extends: .lets_encrypt_staging
+  image: debian:stretch-slim
+
+buster:
+  extends: .lets_encrypt_staging
+  image: debian:buster-slim
+  artifacts:
+    paths:
+     - htmlcov
