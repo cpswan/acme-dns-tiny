@@ -1,6 +1,11 @@
 stages:
   - check
+  - unit_test
   - lets_encrypt_staging
+
+.install_dependencies: &install_dependencies
+    - apt-get update && apt-get install -y --no-install-recommends
+      python3-minimal python3-dnspython python3-requests
 
 .check:
   stage: check
@@ -9,19 +14,31 @@ stages:
     - merge_requests
     - master
 
+.unit_test:
+  stage: unit_test
+  before_script:
+    - *install_dependencies
+    - apt-get install -y --no-install-recommends python3-coverage
+  script:
+    - python3-coverage run --append --source ./ -m unittest -v
+      tests.unit_test_acme_dns_tiny
+  artifacts:
+    paths:
+      - .coverage
+
 .lets_encrypt_staging:
   stage: lets_encrypt_staging
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends
-      python3-minimal python3-dnspython python3-requests python3-coverage
+    - *install_dependencies
+    - apt-get install -y --no-install-recommends python3-coverage
   script:
-    - python3-coverage run --source ./ -m unittest -v tests.test_acme_dns_tiny
-      tests.test_acme_account_rollover tests.test_acme_account_deactivate
-    - python3-coverage report
-      --include=acme_dns_tiny.py
-      --include=tools/acme_account_rollover.py
-      --include=tools/acme_account_deactivate.py
-    - python3-coverage html
+    - python3-coverage run --append --source ./ -m unittest -v
+      tests.staging_test_acme_dns_tiny
+      tests.staging_test_acme_account_rollover
+      tests.staging_test_acme_account_deactivate
+  artifacts:
+    paths:
+      - .coverage
   only:
     - merge_requests
     - master
@@ -37,8 +54,8 @@ compile:
 lint:
   extends: .check
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends pylint3
-      python3-minimal python3-dnspython python3-requests
+    - *install_dependencies
+    - apt-get install -y --no-install-recommends pylint3
   script:
     - pylint3 acme_dns_tiny.py
     - pylint3 tools/acme_account_deactivate.py
@@ -46,6 +63,18 @@ lint:
     - pylint3 tests/config_factory.py
     - pylint3 tests/test_acme_dns_tiny.py
     - pylint3 tests/test_acme_account_deactivate.py
+
+jessie_unit_tests:
+  extends: .unit_test
+  image: debian:jessie-slim
+
+stretch_unit_tests:
+  extends: .unit_test
+  image: debian:stretch-slim
+
+buster_unit_tests:
+  extends: .unit_test
+  image: debian:buster-slim
 
 jessie:
   extends: .lets_encrypt_staging
@@ -58,6 +87,12 @@ stretch:
 buster:
   extends: .lets_encrypt_staging
   image: debian:buster-slim
+  after_script:
+    - python3-coverage report
+      --include=acme_dns_tiny.py
+      --include=tools/acme_account_rollover.py
+      --include=tools/acme_account_deactivate.py
+    - python3-coverage html
   artifacts:
     paths:
      - htmlcov
