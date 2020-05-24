@@ -50,6 +50,19 @@ def generate_config():
 
     return account_key.name, domain_key.name, domain_csr.name, parser
 
+def generate_acme_dns_tiny_unit_test_config():
+    """Genereate acme_dns_tiny configurations used for unit tests"""
+    # Configuration missing DNS section
+    _, domain_key, _, config = generate_config()
+    os.remove(domain_key)
+
+    missing_dns = NamedTemporaryFile(delete=False)
+    config["DNS"] = {}
+    with open(missing_dns.name, 'w') as configfile:
+        config.write(configfile)
+
+    return {"missing_dns": missing_dns.name}
+
 def generate_acme_dns_tiny_config(): #pylint: disable=too-many-locals,too-many-statements
     """Generate acme_dns_tiny configuration with account and domain keys"""
     # Simple configuration with good options
@@ -169,15 +182,6 @@ def generate_acme_dns_tiny_config(): #pylint: disable=too-many-locals,too-many-s
     with open(invalid_tsig_name.name, 'w') as configfile:
         config.write(configfile)
 
-    # Create config parser from the good default config to generate custom configs
-    account_key, domain_key, _, config = generate_config()
-    os.remove(domain_key)
-
-    missing_dns = NamedTemporaryFile(delete=False)
-    config["DNS"] = {}
-    with open(missing_dns.name, 'w') as configfile:
-        config.write(configfile)
-
     return {
         # configs
         "good_cname": good_cname.name,
@@ -190,7 +194,6 @@ def generate_acme_dns_tiny_config(): #pylint: disable=too-many-locals,too-many-s
         "weak_key": weak_key.name,
         "account_as_domain": account_as_domain.name,
         "invalid_tsig_name": invalid_tsig_name.name,
-        "missing_dns": missing_dns.name,
         # cname CSR file to use with good_cname_without_csr as argument
         "cname_csr": cname_csr,
     }
