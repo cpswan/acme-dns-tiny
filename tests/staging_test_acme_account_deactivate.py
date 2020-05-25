@@ -25,6 +25,7 @@ class TestACMEAccountDeactivate(unittest.TestCase):
         super(TestACMEAccountDeactivate, cls).setUpClass()
 
     # To clean ACME staging server and close correctly temporary files
+    #pylint: disable=bare-except
     @classmethod
     def tearDownClass(cls):
         # Remove temporary files
@@ -32,9 +33,15 @@ class TestACMEAccountDeactivate(unittest.TestCase):
         parser.read(cls.configs['config'])
         try:
             os.remove(parser["acmednstiny"]["AccountKeyFile"])
+        except:
+            pass
+        try:
             os.remove(parser["acmednstiny"]["CSRFile"])
+        except:
+            pass
+        try:
             os.remove(cls.configs['config'])
-        except: #pylint: disable=bare-except
+        except:
             pass
         super(TestACMEAccountDeactivate, cls).tearDownClass()
 

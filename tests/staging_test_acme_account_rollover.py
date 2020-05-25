@@ -20,6 +20,7 @@ class TestACMEAccountRollover(unittest.TestCase):
         super(TestACMEAccountRollover, cls).setUpClass()
 
     # To clean ACME staging server and close correctly temporary files
+    #pylint: disable=bare-except
     @classmethod
     def tearDownClass(cls):
         # deactivate account key registration at end of tests
@@ -30,18 +31,27 @@ class TestACMEAccountRollover(unittest.TestCase):
         parser.read(cls.configs['config'])
         try:
             os.remove(parser["acmednstiny"]["AccountKeyFile"])
+        except:
+            pass
+        try:
             os.remove(parser["acmednstiny"]["CSRFile"])
-            os.remove(cls.configs["newaccountkey"])
+        except:
+            pass
+        try:
+            os.remove(cls.configs["new_account_key"])
+        except:
+            pass
+        try:
             os.remove(cls.configs['config'])
-        except: #pylint: disable=bare-except
+        except:
             pass
         super(TestACMEAccountRollover, cls).tearDownClass()
 
     def test_success_account_rollover(self):
         """ Test success account key rollover """
         with self.assertLogs(level='INFO') as accountrolloverlog:
-            tools.acme_account_rollover.main(["--current", self.configs['oldaccountkey'],
-                                              "--new", self.configs['newaccountkey'],
+            tools.acme_account_rollover.main(["--current", self.configs['old_account_key'],
+                                              "--new", self.configs['new_account_key'],
                                               "--acme-directory", ACME_DIRECTORY])
         self.assertIn("INFO:acme_account_rollover:Account keys rolled over !",
                       accountrolloverlog.output)
