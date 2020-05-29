@@ -50,7 +50,7 @@ class TestACMEAccountDeactivate(unittest.TestCase):
         with self.assertLogs(level='INFO') as accountdeactivatelog:
             tools.acme_account_deactivate.main(["--account-key", self.configs['key'],
                                                 "--acme-directory", ACME_DIRECTORY])
-        self.assertIn("INFO:acme_account_deactivate:Account key deactivated !",
+        self.assertIn("INFO:acme_account_deactivate:The account has been deactivated.",
                       accountdeactivatelog.output)
 
 if __name__ == "__main__":

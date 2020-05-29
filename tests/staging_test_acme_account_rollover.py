@@ -53,7 +53,7 @@ class TestACMEAccountRollover(unittest.TestCase):
             tools.acme_account_rollover.main(["--current", self.configs['old_account_key'],
                                               "--new", self.configs['new_account_key'],
                                               "--acme-directory", ACME_DIRECTORY])
-        self.assertIn("INFO:acme_account_rollover:Account keys rolled over !",
+        self.assertIn("INFO:acme_account_rollover:Keys rolled over.",
                       accountrolloverlog.output)
 
 if __name__ == "__main__":
