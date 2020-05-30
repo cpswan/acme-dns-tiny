@@ -20,6 +20,9 @@ stages:
 
 .unit_test:
   stage: unit_test
+  script:
+    - python3-coverage run --append --source ./ -m unittest -v
+      tests.unit_test_acme_dns_tiny
   artifacts:
     paths:
       - .coverage
