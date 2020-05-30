@@ -5,7 +5,7 @@ WORKDIR acme_dns_tiny
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
     python3-minimal python3-dnspython python3-requests \
-    python3-coverage python3-lint \
+    python3-coverage pylint3 \
     && apt-get clean
 
 COPY . .
