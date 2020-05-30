@@ -6,7 +6,7 @@ stages:
 
 .build:
   stage: build
-  image: docker.io/library/docker
+  image: docker:stable
   only:
     - merge_requests
     - master
