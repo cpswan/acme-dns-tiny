@@ -1,36 +1,34 @@
 stages:
+  - build
   - check
   - unit_test
   - lets_encrypt_staging
 
-.install_dependencies: &install_dependencies
-    - apt-get update && apt-get install -y --no-install-recommends
-      python3-minimal python3-dnspython python3-requests
+.build:
+  stage: build
+  image: docker.io/library/docker
+  only:
+    - merge_requests
+    - master
 
 .check:
   stage: check
-  image: debian:buster-slim
+  image: acme-dns-tiny:buster-slim
   only:
     - merge_requests
     - master
 
 .unit_test:
   stage: unit_test
-  before_script:
-    - *install_dependencies
-    - apt-get install -y --no-install-recommends python3-coverage
-  script:
-    - python3-coverage run --append --source ./ -m unittest -v
-      tests.unit_test_acme_dns_tiny
   artifacts:
     paths:
       - .coverage
+  only:
+    - merge_requests
+    - master
 
 .lets_encrypt_staging:
   stage: lets_encrypt_staging
-  before_script:
-    - *install_dependencies
-    - apt-get install -y --no-install-recommends python3-coverage
   script:
     - python3-coverage run --append --source ./ -m unittest -v
       tests.staging_test_acme_dns_tiny
@@ -43,50 +41,64 @@ stages:
     - merge_requests
     - master
 
+jessie-slim:
+  extends: .build
+  script:
+  - docker build -t "acme-dns-tiny:jessie-slim"
+                 -f "docker/jessie/Dockerfile" .
+
+stretch-slim:
+  extends: .build
+  script:
+  - docker build -t "acme-dns-tiny:stretch-slim"
+                 -f "docker/stretch/Dockerfile" .
+
+buster-slim:
+  extends: .build
+  script:
+  - docker build -t "acme-dns-tiny:buster-slim"
+                 -f "docker/buster/Dockerfile" .
+
 compile:
   extends: .check
-  before_script:
-    - apt-get update && apt-get install -y --no-install-recommends
-      python3-minimal
   script:
     - python3 -m py_compile acme_dns_tiny.py tools/*.py tests/*.py
 
 lint:
   extends: .check
-  before_script:
-    - *install_dependencies
-    - apt-get install -y --no-install-recommends pylint3
   script:
     - pylint3 acme_dns_tiny.py
     - pylint3 tools/acme_account_deactivate.py
     - pylint3 tools/acme_account_rollover.py
     - pylint3 tests/config_factory.py
-    - pylint3 tests/test_acme_dns_tiny.py
-    - pylint3 tests/test_acme_account_deactivate.py
+    - pylint3 tests/staging_test_acme_dns_tiny.py
+    - pylint3 tests/unit_test_acme_dns_tiny.py
+    - pylint3 tests/staging_test_acme_account_deactivate.py
+    - pylint3 tests/staging_test_acme_account_rollover.py
 
-jessie_unit_tests:
+jessie-ut:
   extends: .unit_test
-  image: debian:jessie-slim
+  image: acme-dns-tiny:jessie-slim
 
-stretch_unit_tests:
+stretch-ut:
   extends: .unit_test
-  image: debian:stretch-slim
+  image: acme-dns-tiny:stretch-slim
 
-buster_unit_tests:
+buster-ut:
   extends: .unit_test
-  image: debian:buster-slim
+  image: acme-dns-tiny:buster-slim
 
-jessie:
+jessie-le-staging:
   extends: .lets_encrypt_staging
-  image: debian:jessie-slim
+  image: acme-dns-tiny:jessie-slim
 
-stretch:
+stretch-le-staging:
   extends: .lets_encrypt_staging
-  image: debian:stretch-slim
+  image: acme-dns-tiny:stretch-slim
 
-buster:
+buster-le-staging:
   extends: .lets_encrypt_staging
-  image: debian:buster-slim
+  image: acme-dns-tiny:buster-slim
   after_script:
     - python3-coverage report
       --include=acme_dns_tiny.py
