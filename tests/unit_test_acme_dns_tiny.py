@@ -25,10 +25,10 @@ class TestACMEDNSTiny(unittest.TestCase):
         # close temp files correctly
         for conffile in cls.configs:
             parser = configparser.ConfigParser()
-            parser.read(conffile)
+            parser.read(cls.configs[conffile])
             os.remove(parser["acmednstiny"]["AccountKeyFile"])
             os.remove(parser["acmednstiny"]["CSRFile"])
-            os.remove(conffile)
+            os.remove(cls.configs[conffile])
         super(TestACMEDNSTiny, cls).tearDownClass()
 
 
