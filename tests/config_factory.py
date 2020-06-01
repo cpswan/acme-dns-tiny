@@ -38,7 +38,7 @@ def generate_config():
     parser["acmednstiny"]["ACMEDirectory"] = ACMEDIRECTORY
     if CONTACT:
         parser["acmednstiny"]["Contacts"] = "mailto:{0}".format(CONTACT)
-    else:
+    elif "Contacts" in parser:
         del parser["acmednstiny"]["Contacts"]
     parser["TSIGKeyring"]["KeyName"] = TSIGKEYNAME
     parser["TSIGKeyring"]["KeyValue"] = TSIGKEYVALUE
