@@ -51,7 +51,8 @@ def get_crt(config, log=LOGGER):
         protected["nonce"] = nonce or requests.get(acme_config["newNonce"]).headers['Replay-Nonce']
         protected["url"] = url
         if url == acme_config["newAccount"]:
-            del protected["kid"]
+            if "kid" in protected:
+                del protected["kid"]
         else:
             del protected["jwk"]
         protected64 = _base64(json.dumps(protected).encode("utf8"))
@@ -60,7 +61,8 @@ def get_crt(config, log=LOGGER):
         jose = {
             "protected": protected64, "payload": payload64, "signature": _base64(signature)
         }
-        joseheaders = {'Content-Type': 'application/jose+json'}.update(adtheaders)
+        joseheaders = {'Content-Type': 'application/jose+json'}
+        joseheaders.update(adtheaders)
         joseheaders.update(extra_headers or {})
         try:
             response = requests.post(url, json=jose, headers=joseheaders)
@@ -68,9 +70,10 @@ def get_crt(config, log=LOGGER):
             response = error.response
         finally:
             nonce = response.headers['Replay-Nonce']
-        if not response.text:
+        try:
+            return response, response.json()
+        except ValueError:  # if body is empty or not JSON formatted
             return response, json.dumps({})
-        return response, response.json()
 
     # main code
     adtheaders = {'User-Agent': 'acme-dns-tiny/2.1',

@@ -67,7 +67,7 @@ above files. This user should *NOT* have access to your domain key!
 
 This project has a very, very limited scope and codebase. The project is happy
 to receive bug reports and pull requests, but please don't add any new features.
-This script must stay under ~250 lines of code to ensure it can be easily
+This script must stay under ~400 lines of code to ensure it can be easily
 audited by anyone who wants to run it.
 
 If you want to add features for your own setup to make things easier for you,

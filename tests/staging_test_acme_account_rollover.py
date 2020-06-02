@@ -23,12 +23,15 @@ class TestACMEAccountRollover(unittest.TestCase):
     #pylint: disable=bare-except
     @classmethod
     def tearDownClass(cls):
-        # deactivate account key registration at end of tests
-        # (we assume the key has been roll oved)
-        account_deactivate(cls.configs["newaccountkey"], ACME_DIRECTORY)
         # Remove temporary files
         parser = configparser.ConfigParser()
         parser.read(cls.configs['config'])
+        try:
+            # deactivate account key registration at end of tests
+            # (we assume the key has been rolled over)
+            account_deactivate(cls.configs["new_account_key"], ACME_DIRECTORY)
+        except:
+            pass
         try:
             os.remove(parser["acmednstiny"]["AccountKeyFile"])
         except:

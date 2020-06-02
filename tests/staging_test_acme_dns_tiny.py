@@ -44,17 +44,17 @@ class TestACMEDNSTiny(unittest.TestCase):
             parser = configparser.ConfigParser()
             parser.read(cls.configs[conffile])
             try:
+                # for each configuration, deactivate the account key
+                if conffile != "cname_csr":
+                    account_deactivate(parser["acmednstiny"]["AccountKeyFile"], ACME_DIRECTORY)
+            except:
+                pass
+            try:
                 os.remove(parser["acmednstiny"]["AccountKeyFile"])
             except:
                 pass
             try:
                 os.remove(parser["acmednstiny"]["CSRFile"])
-            except:
-                pass
-            try:
-                # for each configuration, deactivate the account key
-                if conffile != "cname_csr":
-                    account_deactivate(parser["acmednstiny"]["AccountKeyFile"], ACME_DIRECTORY)
             except:
                 pass
             try:
