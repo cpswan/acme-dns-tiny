@@ -23,9 +23,6 @@ stages:
   script:
     - python3-coverage run --append --source ./ -m unittest -v
       tests.unit_test_acme_dns_tiny
-  artifacts:
-    paths:
-      - .coverage
   only:
     - merge_requests
     - master
@@ -37,9 +34,6 @@ stages:
       tests.staging_test_acme_dns_tiny
       tests.staging_test_acme_account_rollover
       tests.staging_test_acme_account_deactivate
-  artifacts:
-    paths:
-      - .coverage
   only:
     - merge_requests
     - master
@@ -90,6 +84,9 @@ stretch-ut:
 buster-ut:
   extends: .unit_test
   image: acme-dns-tiny:buster-slim
+  artifacts:
+    paths:
+      - .coverage
 
 jessie-le-staging:
   extends: .lets_encrypt_staging
