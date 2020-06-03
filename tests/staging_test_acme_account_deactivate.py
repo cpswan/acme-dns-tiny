@@ -53,5 +53,5 @@ class TestACMEAccountDeactivate(unittest.TestCase):
         self.assertIn("INFO:acme_account_deactivate:The account has been deactivated.",
                       accountdeactivatelog.output)
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()

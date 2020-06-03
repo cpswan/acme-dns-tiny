@@ -212,5 +212,5 @@ host: we will use either resource found if one exists or directly the DNS Host c
                                "Error updating DNS",
                                acme_dns_tiny.main, [self.configs['invalid_tsig_name'], "--verbose"])
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()

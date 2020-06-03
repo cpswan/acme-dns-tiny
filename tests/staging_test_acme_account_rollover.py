@@ -59,5 +59,5 @@ class TestACMEAccountRollover(unittest.TestCase):
         self.assertIn("INFO:acme_account_rollover:Keys rolled over.",
                       accountrolloverlog.output)
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()

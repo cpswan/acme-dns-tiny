@@ -45,7 +45,6 @@ def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log
                 "kty": "RSA",
                 "n": _b64(binascii.unhexlify(re.sub(r"(\s|:)", "", pub_hex).encode("utf-8"))),
             },
-            "kid": None
         }
 
     def _sign_request(url, keypath, payload, is_inner=False):
@@ -61,7 +60,8 @@ def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log
             protected = copy.deepcopy(private_acme_old_signature)
 
         if is_inner or url == acme_config["newAccount"]:
-            del protected["kid"]
+            if "kid" in protected:
+                del protected["kid"]
         else:
             del protected["jwk"]
 
@@ -91,12 +91,13 @@ def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log
             response = error.response
         finally:
             nonce = response.headers['Replay-Nonce']
-        if not response.text:
+        try:
+            return response, response.json()
+        except ValueError:  # if body is empty or not JSON formatted
             return response, json.dumps({})
-        return response, response.json()
 
     # main code
-    adtheaders = {'User-Agent': 'acme-dns-tiny/2.0'}
+    adtheaders = {'User-Agent': 'acme-dns-tiny/2.2'}
     nonce = None
 
     log.info("Fetch informations from the ACME directory.")

@@ -76,7 +76,7 @@ def get_crt(config, log=LOGGER):
             return response, json.dumps({})
 
     # main code
-    adtheaders = {'User-Agent': 'acme-dns-tiny/2.1',
+    adtheaders = {'User-Agent': 'acme-dns-tiny/2.2',
                   'Accept-Language': config["acmednstiny"].get("Language", "en")}
     nonce = None
 
@@ -242,8 +242,9 @@ def get_crt(config, log=LOGGER):
                     challenge_verified = (challenge_verified
                                           or response.to_text() == '"{0}"'.format(keydigest64))
             except dns.exception.DNSException as dnsexception:
-                log.debug("  - Will retry as a DNS error occurred while checking challenge:\
-                          %s : %s", type(dnsexception).__name__, dnsexception)
+                log.debug(
+                    "  - Will retry as a DNS error occurred while checking challenge: %s : %s",
+                    type(dnsexception).__name__, dnsexception)
             finally:
                 if challenge_verified is False:
                     if number_check_fail >= 10:

@@ -41,7 +41,8 @@ def account_deactivate(accountkeypath, acme_directory, log=LOGGER):
         protected["nonce"] = nonce or requests.get(acme_config["newNonce"]).headers['Replay-Nonce']
         protected["url"] = url
         if url == acme_config["newAccount"]:
-            del protected["kid"]
+            if "kid" in protected:
+                del protected["kid"]
         else:
             del protected["jwk"]
         protected64 = _b64(json.dumps(protected).encode("utf8"))
@@ -60,12 +61,13 @@ def account_deactivate(accountkeypath, acme_directory, log=LOGGER):
             response = error.response
         finally:
             nonce = response.headers['Replay-Nonce']
-        if not response.text:
+        try:
+            return response, response.json()
+        except ValueError:  # if body is empty or not JSON formatted
             return response, json.dumps({})
-        return response, response.json()
 
     # main code
-    adtheaders = {'User-Agent': 'acme-dns-tiny/2.1'}
+    adtheaders = {'User-Agent': 'acme-dns-tiny/2.2'}
     nonce = None
 
     log.info("Fetch informations from the ACME directory.")
@@ -86,7 +88,6 @@ def account_deactivate(accountkeypath, acme_directory, log=LOGGER):
             "kty": "RSA",
             "n": _b64(binascii.unhexlify(re.sub(r"(\s|:)", "", pub_hex).encode("utf-8"))),
         },
-        "kid": None,
     }
 
     log.info("Ask to the ACME server the account identifier to complete the private signature.")
