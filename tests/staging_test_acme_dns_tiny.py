@@ -41,22 +41,22 @@ class TestACMEDNSTiny(unittest.TestCase):
     def tearDownClass(cls):
         # close temp files correctly
         for conffile in cls.configs:
-            parser = configparser.ConfigParser()
-            parser.read(cls.configs[conffile])
-            try:
-                # for each configuration, deactivate the account key
-                if conffile != "cname_csr":
+            # for each configuration file, deactivate the account and remove linked temporary files
+            if conffile != "cname_csr":
+                parser = configparser.ConfigParser()
+                parser.read(cls.configs[conffile])
+                try:
                     account_deactivate(parser["acmednstiny"]["AccountKeyFile"], ACME_DIRECTORY)
-            except:
-                pass
-            try:
-                os.remove(parser["acmednstiny"]["AccountKeyFile"])
-            except:
-                pass
-            try:
-                os.remove(parser["acmednstiny"]["CSRFile"])
-            except:
-                pass
+                except:
+                    pass
+                try:
+                    os.remove(parser["acmednstiny"]["AccountKeyFile"])
+                except:
+                    pass
+                try:
+                    os.remove(parser["acmednstiny"]["CSRFile"])
+                except:
+                    pass
             try:
                 os.remove(cls.configs[conffile])
             except:
@@ -65,7 +65,7 @@ class TestACMEDNSTiny(unittest.TestCase):
 
     # helper function to valid success by making assertion on returned certificate chain
     def _assert_certificate_chain(self, cert_chain):
-        # Output have to contains two certiicates
+        # Output have to contains two certificates
         certlist = cert_chain.split("-----BEGIN CERTIFICATE-----")
         self.assertEqual(3, len(certlist))
         self.assertEqual('', certlist[0])
