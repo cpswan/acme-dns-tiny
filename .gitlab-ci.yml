@@ -101,9 +101,7 @@ buster-le-staging:
   image: acme-dns-tiny:buster-slim
   after_script:
     - python3-coverage report
-      --include=acme_dns_tiny.py
-      --include=tools/acme_account_rollover.py
-      --include=tools/acme_account_deactivate.py
+      --include=acme_dns_tiny.py,tools/acme_account_rollover.py,tools/acme_account_deactivate.py
     - python3-coverage html
   artifacts:
     paths:
