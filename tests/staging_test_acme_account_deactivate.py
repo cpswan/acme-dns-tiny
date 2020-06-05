@@ -9,8 +9,9 @@ import tools.acme_account_deactivate
 ACME_DIRECTORY = os.getenv("GITLABCI_ACMEDIRECTORY_V2",
                            "https://acme-staging-v02.api.letsencrypt.org/directory")
 
+
 class TestACMEAccountDeactivate(unittest.TestCase):
-    "Tests for acme_account_deactivate"
+    """Tests for acme_account_deactivate."""
 
     @classmethod
     def setUpClass(cls):
@@ -25,7 +26,7 @@ class TestACMEAccountDeactivate(unittest.TestCase):
         super(TestACMEAccountDeactivate, cls).setUpClass()
 
     # To clean ACME staging server and close correctly temporary files
-    #pylint: disable=bare-except
+    # pylint: disable=bare-except
     @classmethod
     def tearDownClass(cls):
         # Remove temporary files
@@ -52,6 +53,7 @@ class TestACMEAccountDeactivate(unittest.TestCase):
                                                 "--acme-directory", ACME_DIRECTORY])
         self.assertIn("INFO:acme_account_deactivate:The account has been deactivated.",
                       accountdeactivatelog.output)
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

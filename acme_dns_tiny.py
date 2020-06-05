@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#pylint: disable=multiple-imports
+# pylint: disable=multiple-imports
 """ACME client to met DNS challenge and receive TLS certificate"""
 import argparse, base64, binascii, configparser, copy, hashlib, json, logging
 import re, sys, subprocess, time
@@ -8,9 +8,11 @@ import requests, dns.resolver, dns.tsigkeyring, dns.update
 LOGGER = logging.getLogger('acme_dns_tiny')
 LOGGER.addHandler(logging.StreamHandler())
 
+
 def _base64(text):
-    """"Encodes string as base64 as specified in the ACME RFC."""
+    """Encodes string as base64 as specified in the ACME RFC."""
     return base64.urlsafe_b64encode(text).decode("utf8").rstrip("=")
+
 
 def _openssl(command, options, communicate=None):
     """Run openssl command line and raise IOError on non-zero return."""
@@ -22,9 +24,10 @@ def _openssl(command, options, communicate=None):
         raise IOError("OpenSSL Error: {0}".format(err))
     return out
 
-#pylint: disable=too-many-locals,too-many-branches,too-many-statements
+
+# pylint: disable=too-many-locals,too-many-branches,too-many-statements
 def get_crt(config, log=LOGGER):
-    """Get ACME certificate by resolving DNS challenge"""
+    """Get ACME certificate by resolving DNS challenge."""
 
     def _update_dns(rrset, action):
         """Updates DNS resource by adding or deleting resource."""
@@ -43,7 +46,7 @@ def get_crt(config, log=LOGGER):
     def _send_signed_request(url, payload, extra_headers=None):
         """Sends signed requests to ACME server."""
         nonlocal nonce
-        if payload == "": # on POST-as-GET, final payload has to be just empty string
+        if payload == "":  # on POST-as-GET, final payload has to be just empty string
             payload64 = ""
         else:
             payload64 = _base64(json.dumps(payload).encode("utf8"))
@@ -93,7 +96,7 @@ def get_crt(config, log=LOGGER):
         for san in subject_alt_names.group(1).split(", "):
             if san.startswith("DNS:"):
                 domains.add(san[4:])
-    if len(domains) == 0: #pylint: disable=len-as-condition
+    if len(domains) == 0:  # pylint: disable=len-as-condition
         raise ValueError("Didn't find any domain to validate in the provided CSR.")
 
     log.info("Configure DNS client tools.")
@@ -109,8 +112,8 @@ def get_crt(config, log=LOGGER):
         nameserver = nameserver + [ipv6_rrset.to_text() for ipv6_rrset
                                    in dns.resolver.query(config["DNS"]["Host"], rdtype="AAAA")]
     except dns.exception.DNSException:
-        log.info("A and/or AAAA DNS resources not found for configured dns host: we will use either\
- resource found if one exists or directly the DNS Host configuration.")
+        log.info(("A and/or AAAA DNS resources not found for configured dns host: we will use "
+                  "either resource found if one exists or directly the DNS Host configuration."))
     if not nameserver:
         nameserver = [config["DNS"]["Host"]]
     resolver.nameservers = nameserver
@@ -143,8 +146,8 @@ def get_crt(config, log=LOGGER):
     account_request = {}
     if terms_service:
         account_request["termsOfServiceAgreed"] = True
-        log.warning("Terms of service exist and will be automatically agreed if possible, \
-                     you should read them: %s", terms_service)
+        log.warning(("Terms of service exist and will be automatically agreed if possible, "
+                     "you should read them: %s"), terms_service)
     account_request["contact"] = config["acmednstiny"].get("Contacts", "").split(';')
     if account_request["contact"] == [""]:
         del account_request["contact"]
@@ -184,8 +187,8 @@ def get_crt(config, log=LOGGER):
                              .format(order))
     elif (http_response.status_code == 403
           and order["type"] == "urn:ietf:params:acme:error:userActionRequired"):
-        raise ValueError("Order creation failed ({0}). Read Terms of Service ({1}), \
-                          then follow your CA instructions: {2}"
+        raise ValueError(("Order creation failed ({0}). Read Terms of Service ({1}), then follow "
+                          "your CA instructions: {2}")
                          .format(order["detail"], http_response.headers['Link'], order["instance"]))
     else:
         raise ValueError("Error getting new Order: {0} {1}"
@@ -211,15 +214,15 @@ def get_crt(config, log=LOGGER):
         keyauthorization = "{0}.{1}".format(token, jwk_thumbprint)
         keydigest64 = _base64(hashlib.sha256(keyauthorization.encode("utf8")).digest())
         dnsrr_domain = "_acme-challenge.{0}.".format(domain)
-        try: # a CNAME resource can be used for advanced TSIG configuration
-             # Note: the CNAME target has to be of "non-CNAME" type (recursion isn't managed)
+        try:  # a CNAME resource can be used for advanced TSIG configuration
+            # Note: the CNAME target has to be of "non-CNAME" type (recursion isn't managed)
             dnsrr_domain = [response.to_text() for response
                             in resolver.query(dnsrr_domain, rdtype="CNAME")][0]
             log.info("  - A CNAME resource has been found for this domain, will install TXT on %s",
                      dnsrr_domain)
         except dns.exception.DNSException as dnsexception:
-            log.debug("  - Not any CNAME resource has been found for this domain (%s), will install\
-                      TXT directly on %s", dnsrr_domain, type(dnsexception).__name__)
+            log.debug(("  - Not any CNAME resource has been found for this domain (%s), will "
+                       "install TXT directly on %s"), dnsrr_domain, type(dnsexception).__name__)
         dnsrr_set = dns.rrset.from_text(dnsrr_domain, config["DNS"].getint("TTL"),
                                         "IN", "TXT", '"{0}"'.format(keydigest64))
         try:
@@ -235,8 +238,8 @@ def get_crt(config, log=LOGGER):
         number_check_fail = 1
         while challenge_verified is False:
             try:
-                log.debug('Self test (try: %s): Check resource with value "%s" exits on\
-                          nameservers: %s', number_check_fail, keydigest64, resolver.nameservers)
+                log.debug(('Self test (try: %s): Check resource with value "%s" exits on '
+                           'nameservers: %s'), number_check_fail, keydigest64, resolver.nameservers)
                 for response in resolver.query(dnsrr_domain, rdtype="TXT").rrset:
                     log.debug("  - Found value %s", response.to_text())
                     challenge_verified = (challenge_verified
@@ -312,6 +315,7 @@ def get_crt(config, log=LOGGER):
     log.info("Certificate signed and chain received: %s", order["certificate"])
     return http_response.text
 
+
 def main(argv):
     """Parse arguments and get certificate."""
     parser = argparse.ArgumentParser(
@@ -352,6 +356,7 @@ from the configuration file.")
     LOGGER.setLevel(args.verbose or args.quiet or logging.INFO)
     signed_crt = get_crt(config, LOGGER)
     sys.stdout.write(signed_crt)
+
 
 if __name__ == "__main__":  # pragma: no cover
     main(sys.argv[1:])

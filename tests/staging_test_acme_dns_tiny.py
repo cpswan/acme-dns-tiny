@@ -13,8 +13,9 @@ from tools.acme_account_deactivate import account_deactivate
 ACME_DIRECTORY = os.getenv("GITLABCI_ACMEDIRECTORY_V2",
                            "https://acme-staging-v02.api.letsencrypt.org/directory")
 
+
 def _openssl(command, options, communicate=None):
-    """Helper function to run openssl command"""
+    """Helper function to run openssl command."""
     openssl = subprocess.Popen(["openssl", command] + options,
                                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
@@ -23,8 +24,9 @@ def _openssl(command, options, communicate=None):
         raise IOError("OpenSSL Error: {0}".format(err))
     return out.decode("utf8")
 
+
 class TestACMEDNSTiny(unittest.TestCase):
-    "Tests for acme_dns_tiny.get_crt()"
+    """Tests for acme_dns_tiny.get_crt()."""
 
     @classmethod
     def setUpClass(cls):
@@ -36,7 +38,7 @@ class TestACMEDNSTiny(unittest.TestCase):
         super(TestACMEDNSTiny, cls).setUpClass()
 
     # To clean ACME staging server and close correctly temporary files
-    #pylint: disable=bare-except
+    # pylint: disable=bare-except
     @classmethod
     def tearDownClass(cls):
         # close temp files correctly
@@ -77,7 +79,7 @@ class TestACMEDNSTiny(unittest.TestCase):
         self.assertIn("Issuer", readablecertchain)
 
     def test_success_cn(self):
-        """ Successfully issue a certificate via common name """
+        """Successfully issue a certificate via common name."""
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
@@ -90,7 +92,7 @@ class TestACMEDNSTiny(unittest.TestCase):
         self._assert_certificate_chain(certchain)
 
     def test_success_cn_without_contacts(self):
-        """ Successfully issue a certificate via CN, but without Contacts field """
+        """Successfully issue a certificate via CN, but without Contacts field."""
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
@@ -103,7 +105,7 @@ class TestACMEDNSTiny(unittest.TestCase):
         self._assert_certificate_chain(certchain)
 
     def test_success_cn_with_csr_option(self):
-        """ Successfully issue a certificate using CSR option outside from the config file"""
+        """Successfully issue a certificate using CSR option outside from the config file."""
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
@@ -117,7 +119,7 @@ class TestACMEDNSTiny(unittest.TestCase):
         self._assert_certificate_chain(certchain)
 
     def test_success_wild_cn(self):
-        """ Successfully issue a certificate via a wildcard common name """
+        """Successfully issue a certificate via a wildcard common name."""
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
@@ -130,16 +132,16 @@ class TestACMEDNSTiny(unittest.TestCase):
         self._assert_certificate_chain(certchain)
 
     def test_success_dnshost_ip(self):
-        """ When DNS Host is an IP, DNS resolution have to fail without error """
+        """When DNS Host is an IP, DNS resolution have to fail without error."""
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
         with self.assertLogs(level='INFO') as adnslog:
             acme_dns_tiny.main([self.configs['dns_host_ip'],
                                 "--verbose"])
-        self.assertIn("INFO:acme_dns_tiny:A and/or AAAA DNS resources not found for configured dns \
-host: we will use either resource found if one exists or directly the DNS Host configuration.",
-                      adnslog.output)
+        self.assertIn(("INFO:acme_dns_tiny:A and/or AAAA DNS resources not found for configured "
+                       "dns host: we will use either resource found if one exists or directly the "
+                       "DNS Host configuration."), adnslog.output)
         certchain = sys.stdout.getvalue()
 
         sys.stdout.close()
@@ -148,7 +150,7 @@ host: we will use either resource found if one exists or directly the DNS Host c
         self._assert_certificate_chain(certchain)
 
     def test_success_san(self):
-        """ Successfully issue a certificate via subject alt name """
+        """Successfully issue a certificate via subject alt name."""
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
@@ -161,7 +163,7 @@ host: we will use either resource found if one exists or directly the DNS Host c
         self._assert_certificate_chain(certchain)
 
     def test_success_wildsan(self):
-        """ Successfully issue a certificate via wildcard in subject alt name """
+        """Successfully issue a certificate via wildcard in subject alt name."""
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
@@ -174,7 +176,7 @@ host: we will use either resource found if one exists or directly the DNS Host c
         self._assert_certificate_chain(certchain)
 
     def test_success_cli(self):
-        """ Successfully issue a certificate via command line interface """
+        """Successfully issue a certificate via command line interface."""
         certout, _ = subprocess.Popen([
             "python3", "acme_dns_tiny.py", self.configs['good_cname'], "--verbose"
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
@@ -184,7 +186,7 @@ host: we will use either resource found if one exists or directly the DNS Host c
         self._assert_certificate_chain(certchain)
 
     def test_success_cli_with_csr_option(self):
-        """ Successfully issue a certificate via command line interface using CSR option"""
+        """Successfully issue a certificate via command line interface using CSR option."""
         certout, _ = subprocess.Popen([
             "python3", "acme_dns_tiny.py", "--csr", self.configs['cname_csr'],
             self.configs['good_cname_without_csr'], "--verbose"
@@ -195,22 +197,23 @@ host: we will use either resource found if one exists or directly the DNS Host c
         self._assert_certificate_chain(certchain)
 
     def test_weak_key(self):
-        """ Let's Encrypt rejects weak keys """
+        """Let's Encrypt rejects weak keys."""
         self.assertRaisesRegex(ValueError,
                                "key too small",
                                acme_dns_tiny.main, [self.configs['weak_key'], "--verbose"])
 
     def test_account_key_domain(self):
-        """ Can't use the account key for the CSR """
+        """Can't use the account key for the CSR."""
         self.assertRaisesRegex(ValueError,
                                "certificate public key must be different than account key",
                                acme_dns_tiny.main, [self.configs['account_as_domain'], "--verbose"])
 
     def test_failure_dns_update_tsigkeyname(self):
-        """ Fail to update DNS records by invalid TSIG Key name """
+        """Fail to update DNS records by invalid TSIG Key name."""
         self.assertRaisesRegex(ValueError,
                                "Error updating DNS",
                                acme_dns_tiny.main, [self.configs['invalid_tsig_name'], "--verbose"])
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

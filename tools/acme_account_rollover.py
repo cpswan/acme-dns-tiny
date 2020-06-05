@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#pylint: disable=too-many-statements
+# pylint: disable=too-many-statements
 """Tiny script to rollover two keys for an ACME account"""
 import sys
 import argparse
@@ -15,9 +15,11 @@ import requests
 LOGGER = logging.getLogger("acme_account_rollover")
 LOGGER.addHandler(logging.StreamHandler())
 
+
 def _b64(text):
-    """"Encodes text as base64 as specified in ACME RFC """
+    """Encodes text as base64 as specified in ACME RFC."""
     return base64.urlsafe_b64encode(text).decode("utf8").rstrip("=")
+
 
 def _openssl(command, options, communicate=None):
     """Run openssl command line and raise IOError on non-zero return."""
@@ -27,6 +29,7 @@ def _openssl(command, options, communicate=None):
     if openssl.returncode != 0:
         raise IOError("OpenSSL Error: {0}".format(err))
     return out
+
 
 def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log=LOGGER):
     """Rollover the old and new account key for an ACME account."""
@@ -50,7 +53,7 @@ def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log
     def _sign_request(url, keypath, payload, is_inner=False):
         """Signs request with a specific right account key."""
         nonlocal nonce
-        if payload == "": # on POST-as-GET, final payload has to be just empty string
+        if payload == "":  # on POST-as-GET, final payload has to be just empty string
             payload64 = ""
         else:
             payload64 = _b64(json.dumps(payload).encode("utf8"))
@@ -136,8 +139,9 @@ def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log
                          .format(http_response.status_code, result))
     log.info("Keys rolled over.")
 
+
 def main(argv):
-    """Parse arguments and roll over the ACME account keys"""
+    """Parse arguments and roll over the ACME account keys."""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Tiny ACME client to roll over an ACME account key with another one.",
@@ -161,6 +165,7 @@ https://acme-staging-v02.api.letsencrypt.org/directory""")
 
     LOGGER.setLevel(args.quiet or logging.INFO)
     account_rollover(args.current, args.new, args.acme_directory, log=LOGGER)
+
 
 if __name__ == "__main__":  # pragma: no cover
     main(sys.argv[1:])

@@ -10,8 +10,9 @@ import tools.acme_account_rollover
 ACME_DIRECTORY = os.getenv("GITLABCI_ACMEDIRECTORY_V2",
                            "https://acme-staging-v02.api.letsencrypt.org/directory")
 
+
 class TestACMEAccountRollover(unittest.TestCase):
-    "Tests for acme_account_rollover"
+    """Tests for acme_account_rollover."""
 
     @classmethod
     def setUpClass(cls):
@@ -20,7 +21,7 @@ class TestACMEAccountRollover(unittest.TestCase):
         super(TestACMEAccountRollover, cls).setUpClass()
 
     # To clean ACME staging server and close correctly temporary files
-    #pylint: disable=bare-except
+    # pylint: disable=bare-except
     @classmethod
     def tearDownClass(cls):
         # Remove temporary files
@@ -51,13 +52,13 @@ class TestACMEAccountRollover(unittest.TestCase):
         super(TestACMEAccountRollover, cls).tearDownClass()
 
     def test_success_account_rollover(self):
-        """ Test success account key rollover """
+        """ Test success account key rollover."""
         with self.assertLogs(level='INFO') as accountrolloverlog:
             tools.acme_account_rollover.main(["--current", self.configs['old_account_key'],
                                               "--new", self.configs['new_account_key'],
                                               "--acme-directory", ACME_DIRECTORY])
-        self.assertIn("INFO:acme_account_rollover:Keys rolled over.",
-                      accountrolloverlog.output)
+        self.assertIn("INFO:acme_account_rollover:Keys rolled over.", accountrolloverlog.output)
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

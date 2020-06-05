@@ -18,6 +18,7 @@ TSIGKEYVALUE = os.getenv("GITLABCI_TSIGKEYVALUE")
 TSIGALGORITHM = os.getenv("GITLABCI_TSIGALGORITHM")
 CONTACT = os.getenv("GITLABCI_CONTACT")
 
+
 def generate_config():
     """Generate basic acme-dns-tiny configuration"""
     # Account key
@@ -50,6 +51,7 @@ def generate_config():
 
     return account_key.name, domain_key.name, domain_csr.name, parser
 
+
 def generate_acme_dns_tiny_unit_test_config():
     """Genereate acme_dns_tiny configurations used for unit tests"""
     # Configuration missing DNS section
@@ -63,7 +65,8 @@ def generate_acme_dns_tiny_unit_test_config():
 
     return {"missing_dns": missing_dns.name}
 
-def generate_acme_dns_tiny_config(): #pylint: disable=too-many-locals,too-many-statements
+
+def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many-statements
     """Generate acme_dns_tiny configuration with account and domain keys"""
     # Simple configuration with good options
     account_key, domain_key, _, config = generate_config()
@@ -132,7 +135,6 @@ def generate_acme_dns_tiny_config(): #pylint: disable=too-many-locals,too-many-s
     with open(good_san.name, 'w') as configfile:
         config.write(configfile)
 
-
     # Configuration with CSR containing a wildcard domain inside subjetcAltName
     account_key, domain_key, domain_csr, config = generate_config()
 
@@ -198,6 +200,7 @@ def generate_acme_dns_tiny_config(): #pylint: disable=too-many-locals,too-many-s
         "cname_csr": cname_csr,
     }
 
+
 def generate_acme_account_rollover_config():
     """Generate config for acme_account_rollover script"""
     # Old account key is directly created by the config generator
@@ -218,6 +221,7 @@ def generate_acme_account_rollover_config():
         "old_account_key": old_account_key,
         "new_account_key": new_account_key.name
     }
+
 
 def generate_acme_account_deactivate_config():
     """Generate config for acme_account_deactivate script"""

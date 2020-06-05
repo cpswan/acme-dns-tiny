@@ -14,9 +14,11 @@ import requests
 LOGGER = logging.getLogger("acme_account_deactivate")
 LOGGER.addHandler(logging.StreamHandler())
 
+
 def _b64(text):
-    """"Encodes text as base64 as specified in ACME RFC """
+    """Encodes text as base64 as specified in ACME RFC."""
     return base64.urlsafe_b64encode(text).decode("utf8").rstrip("=")
+
 
 def _openssl(command, options, communicate=None):
     """Run openssl command line and raise IOError on non-zero return."""
@@ -27,13 +29,14 @@ def _openssl(command, options, communicate=None):
         raise IOError("OpenSSL Error: {0}".format(err))
     return out
 
+
 def account_deactivate(accountkeypath, acme_directory, log=LOGGER):
-    """Deactivate an ACME account"""
+    """Deactivate an ACME account."""
 
     def _send_signed_request(url, payload):
         """Sends signed requests to ACME server."""
         nonlocal nonce
-        if payload == "": # on POST-as-GET, final payload has to be just empty string
+        if payload == "":  # on POST-as-GET, final payload has to be just empty string
             payload64 = ""
         else:
             payload64 = _b64(json.dumps(payload).encode("utf8"))
@@ -109,8 +112,9 @@ def account_deactivate(accountkeypath, acme_directory, log=LOGGER):
         raise ValueError("Error while deactivating the account key: {0} {1}"
                          .format(http_response.status_code, result))
 
+
 def main(argv):
-    """Parse arguments and deactivate account"""
+    """Parse arguments and deactivate account."""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Tiny ACME script to deactivate an ACME account",
@@ -137,6 +141,7 @@ https://acme-staging-v02.api.letsencrypt.org/directory"""
 
     LOGGER.setLevel(args.quiet or logging.INFO)
     account_deactivate(args.account_key, args.acme_directory, log=LOGGER)
+
 
 if __name__ == "__main__":  # pragma: no cover
     main(sys.argv[1:])
