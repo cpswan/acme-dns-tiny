@@ -1,0 +1,114 @@
+stages:
+  - build
+  - check
+  - unit_test
+  - lets_encrypt_staging
+
+.build:
+  stage: build
+  image: docker:stable
+  only:
+    - merge_requests
+    - master
+
+.check:
+  stage: check
+  image: acme-dns-tiny:buster-slim
+  only:
+    - merge_requests
+    - master
+
+.unit_test:
+  stage: unit_test
+  script:
+    - python3-coverage run --append --source ./ -m unittest -v
+      tests.unit_test_acme_dns_tiny
+  only:
+    - merge_requests
+    - master
+
+.lets_encrypt_staging:
+  stage: lets_encrypt_staging
+  script:
+    - python3-coverage run --append --source ./ -m unittest -v
+      tests.staging_test_acme_dns_tiny
+      tests.staging_test_acme_account_rollover
+      tests.staging_test_acme_account_deactivate
+  only:
+    - merge_requests
+    - master
+
+jessie-slim:
+  extends: .build
+  script:
+  - docker build -t "acme-dns-tiny:jessie-slim"
+                 -f "docker/jessie/Dockerfile" .
+
+stretch-slim:
+  extends: .build
+  script:
+  - docker build -t "acme-dns-tiny:stretch-slim"
+                 -f "docker/stretch/Dockerfile" .
+
+buster-slim:
+  extends: .build
+  script:
+  - docker build -t "acme-dns-tiny:buster-slim"
+                 -f "docker/buster/Dockerfile" .
+
+compile:
+  extends: .check
+  script:
+    - python3 -m py_compile acme_dns_tiny.py tools/*.py tests/*.py
+
+lint:
+  extends: .check
+  script:
+    - pylint3 acme_dns_tiny.py
+    - pylint3 tools/acme_account_deactivate.py
+    - pylint3 tools/acme_account_rollover.py
+    - pylint3 tests/config_factory.py
+    - pylint3 tests/staging_test_acme_dns_tiny.py
+    - pylint3 tests/unit_test_acme_dns_tiny.py
+    - pylint3 tests/staging_test_acme_account_deactivate.py
+    - pylint3 tests/staging_test_acme_account_rollover.py
+
+pep8:
+  extends: .check
+  script:
+    - pycodestyle --max-line-length=100 --ignore=E401,W503 --exclude=tests .
+    - pycodestyle --max-line-length=100 --ignore=E722 tests
+
+jessie-ut:
+  extends: .unit_test
+  image: acme-dns-tiny:jessie-slim
+
+stretch-ut:
+  extends: .unit_test
+  image: acme-dns-tiny:stretch-slim
+
+buster-ut:
+  extends: .unit_test
+  image: acme-dns-tiny:buster-slim
+  artifacts:
+    paths:
+      - .coverage
+
+jessie-le-staging:
+  extends: .lets_encrypt_staging
+  image: acme-dns-tiny:jessie-slim
+
+stretch-le-staging:
+  extends: .lets_encrypt_staging
+  image: acme-dns-tiny:stretch-slim
+
+buster-le-staging:
+  extends: .lets_encrypt_staging
+  image: acme-dns-tiny:buster-slim
+  after_script:
+    - python3-coverage report
+      --include=acme_dns_tiny.py,tools/acme_account_rollover.py,tools/acme_account_deactivate.py
+    - python3-coverage html
+  artifacts:
+    paths:
+     - htmlcov
