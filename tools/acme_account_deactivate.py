@@ -80,7 +80,7 @@ def account_deactivate(accountkeypath, acme_directory, log=LOGGER):
     accountkey = _openssl("rsa", ["-in", accountkeypath, "-noout", "-text"])
     pub_hex, pub_exp = re.search(
         r"modulus:\r?\n\s+00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
-        accountkey.decode("utf8"), re.MULTILINE | re.DOTALL).groups()
+        accountkey.decode("utf8"), re.MULTILINE).groups()
     pub_exp = "{0:x}".format(int(pub_exp))
     pub_exp = "0{0}".format(pub_exp) if len(pub_exp) % 2 else pub_exp
     # That signature is used to authenticate with the ACME server, it needs to be safely kept
