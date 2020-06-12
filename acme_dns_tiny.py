@@ -91,7 +91,7 @@ def get_crt(config, log=LOGGER):
     if common_name is not None:
         domains.add(common_name.group(1))
     subject_alt_names = re.search(
-        r"X509v3 Subject Alternative Name: (?:critical)?\s+?([^\r\n]+)\r?\n",
+        r"X509v3 Subject Alternative Name: (?:critical)?\s+([^\r\n]+)\r?\n",
         csr, re.MULTILINE)
     if subject_alt_names is not None:
         for san in subject_alt_names.group(1).split(", "):
