@@ -141,7 +141,8 @@ def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many
     wild_san_conf = NamedTemporaryFile(delete=False)
     with open("/etc/ssl/openssl.cnf", 'r') as opensslcnf:
         wild_san_conf.write(opensslcnf.read().encode("utf8"))
-    wild_san_conf.write("\n[SAN]\nsubjectAltName=DNS:{0},DNS:*.{0}\n".format(DOMAIN).encode("utf8"))
+    wild_san_conf.write("\n[SAN]\nsubjectAltName=DNS:{0},DNS:*.{0}\n"
+                        .format(DOMAIN).encode("utf8"))
     wild_san_conf.seek(0)
     Popen(["openssl", "req", "-new", "-sha256", "-key", domain_key,
            "-subj", "/", "-reqexts", "SAN", "-config", wild_san_conf.name,

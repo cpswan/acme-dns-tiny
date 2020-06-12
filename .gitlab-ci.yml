@@ -64,20 +64,20 @@ compile:
 lint:
   extends: .check
   script:
-    - pylint3 acme_dns_tiny.py
-    - pylint3 tools/acme_account_deactivate.py
-    - pylint3 tools/acme_account_rollover.py
-    - pylint3 tests/config_factory.py
-    - pylint3 tests/staging_test_acme_dns_tiny.py
-    - pylint3 tests/unit_test_acme_dns_tiny.py
-    - pylint3 tests/staging_test_acme_account_deactivate.py
-    - pylint3 tests/staging_test_acme_account_rollover.py
+    - pylint3 --max-line-length=99 acme_dns_tiny.py
+    - pylint3 --max-line-length=99 tools/acme_account_deactivate.py
+    - pylint3 --max-line-length=99 tools/acme_account_rollover.py
+    - pylint3 --max-line-length=99 tests/config_factory.py
+    - pylint3 --max-line-length=99 tests/staging_test_acme_dns_tiny.py
+    - pylint3 --max-line-length=99 tests/unit_test_acme_dns_tiny.py
+    - pylint3 --max-line-length=99 tests/staging_test_acme_account_deactivate.py
+    - pylint3 --max-line-length=99 tests/staging_test_acme_account_rollover.py
 
 pep8:
   extends: .check
   script:
-    - pycodestyle --max-line-length=100 --ignore=E401,W503 --exclude=tests .
-    - pycodestyle --max-line-length=100 --ignore=E722 tests
+    - pycodestyle --max-line-length=99 --ignore=E401,W503 --exclude=tests .
+    - pycodestyle --max-line-length=99 --ignore=E722 tests
 
 jessie-ut:
   extends: .unit_test

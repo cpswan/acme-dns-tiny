@@ -90,8 +90,9 @@ def get_crt(config, log=LOGGER):
     common_name = re.search(r"Subject:.*?\s+?CN\s*?=\s*?([^\s,;/]+)", csr)
     if common_name is not None:
         domains.add(common_name.group(1))
-    subject_alt_names = re.search(r"X509v3 Subject Alternative Name: \r?\n +([^\r\n]+)\r?\n", csr,
-                                  re.MULTILINE | re.DOTALL)
+    subject_alt_names = re.search(
+        r"X509v3 Subject Alternative Name: (?:critical)?\s+([^\r\n]+)\r?\n",
+        csr, re.MULTILINE)
     if subject_alt_names is not None:
         for san in subject_alt_names.group(1).split(", "):
             if san.startswith("DNS:"):
@@ -122,8 +123,8 @@ def get_crt(config, log=LOGGER):
     accountkey = _openssl("rsa", ["-in", config["acmednstiny"]["AccountKeyFile"],
                                   "-noout", "-text"])
     pub_hex, pub_exp = re.search(
-        r"modulus:\r?\n\s+00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
-        accountkey.decode("utf8"), re.MULTILINE | re.DOTALL).groups()
+        r"modulus:\s+?00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
+        accountkey.decode("utf8"), re.MULTILINE).groups()
     pub_exp = "{0:x}".format(int(pub_exp))
     pub_exp = "0{0}".format(pub_exp) if len(pub_exp) % 2 else pub_exp
     # That signature is used to authenticate with the ACME server, it needs to be safely kept
@@ -168,7 +169,8 @@ def get_crt(config, log=LOGGER):
     log.info("Update contact information if needed.")
     if ("contact" in account_request
             and set(account_request["contact"]) != set(account_info["contact"])):
-        http_response, result = _send_signed_request(private_acme_signature["kid"], account_request)
+        http_response, result = _send_signed_request(private_acme_signature["kid"],
+                                                     account_request)
         if http_response.status_code == 200:
             log.debug("  - Account updated with latest contact informations.")
         else:
@@ -189,7 +191,8 @@ def get_crt(config, log=LOGGER):
           and order["type"] == "urn:ietf:params:acme:error:userActionRequired"):
         raise ValueError(("Order creation failed ({0}). Read Terms of Service ({1}), then follow "
                           "your CA instructions: {2}")
-                         .format(order["detail"], http_response.headers['Link'], order["instance"]))
+                         .format(order["detail"],
+                                 http_response.headers['Link'], order["instance"]))
     else:
         raise ValueError("Error getting new Order: {0} {1}"
                          .format(http_response.status_code, order))
@@ -239,7 +242,8 @@ def get_crt(config, log=LOGGER):
         while challenge_verified is False:
             try:
                 log.debug(('Self test (try: %s): Check resource with value "%s" exits on '
-                           'nameservers: %s'), number_check_fail, keydigest64, resolver.nameservers)
+                           'nameservers: %s'), number_check_fail, keydigest64,
+                          resolver.nameservers)
                 for response in resolver.query(dnsrr_domain, rdtype="TXT").rrset:
                     log.debug("  - Found value %s", response.to_text())
                     challenge_verified = (challenge_verified
@@ -280,7 +284,8 @@ def get_crt(config, log=LOGGER):
             _update_dns(dnsrr_set, "delete")
 
     log.info("Request to finalize the order (all chalenge have been completed)")
-    csr_der = _base64(_openssl("req", ["-in", config["acmednstiny"]["CSRFile"], "-outform", "DER"]))
+    csr_der = _base64(_openssl("req", ["-in", config["acmednstiny"]["CSRFile"],
+                                       "-outform", "DER"]))
     http_response, result = _send_signed_request(order["finalize"], {"csr": csr_der})
     if http_response.status_code != 200:
         raise ValueError("Error while sending the CSR: {0} {1}"
