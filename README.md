@@ -9,7 +9,7 @@ validation.
 
 Since it has to have access to your private ACME account key and the
 rights to update the DNS records of your DNS server, this code has been designed
-to be as tiny as possible (currently less than 300 lines).
+to be as tiny as possible (currently less than 400 lines).
 
 The only prerequisites are Python 3, OpenSSL and the dnspython module.
 
@@ -20,7 +20,7 @@ code) or any release of dnspython module (pyhton2 and python3 merged code) since
 1.15.0.
 
 **PLEASE READ THE SOURCE CODE! YOU MUST TRUST IT!
-IT HANDLES YOUR ACCOUNT PRIVATE KEYS!**
+IT HANDLES YOUR ACCOUNT PRIVATE KEY AND UPDATE SOME OF YOUR DNS RESOURCES !**
 
 Note: this script is a fork of the [acme-tiny project](https://github.com/diafygi/acme-tiny)
 which uses ACME HTTP verification to create signed certificates.
