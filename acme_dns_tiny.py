@@ -169,7 +169,8 @@ def get_crt(config, log=LOGGER):
     log.info("Update contact information if needed.")
     if ("contact" in account_request
             and set(account_request["contact"]) != set(account_info["contact"])):
-        http_response, result = _send_signed_request(private_acme_signature["kid"], account_request)
+        http_response, result = _send_signed_request(private_acme_signature["kid"],
+                                                     account_request)
         if http_response.status_code == 200:
             log.debug("  - Account updated with latest contact informations.")
         else:
@@ -190,7 +191,8 @@ def get_crt(config, log=LOGGER):
           and order["type"] == "urn:ietf:params:acme:error:userActionRequired"):
         raise ValueError(("Order creation failed ({0}). Read Terms of Service ({1}), then follow "
                           "your CA instructions: {2}")
-                         .format(order["detail"], http_response.headers['Link'], order["instance"]))
+                         .format(order["detail"],
+                                 http_response.headers['Link'], order["instance"]))
     else:
         raise ValueError("Error getting new Order: {0} {1}"
                          .format(http_response.status_code, order))
@@ -240,7 +242,8 @@ def get_crt(config, log=LOGGER):
         while challenge_verified is False:
             try:
                 log.debug(('Self test (try: %s): Check resource with value "%s" exits on '
-                           'nameservers: %s'), number_check_fail, keydigest64, resolver.nameservers)
+                           'nameservers: %s'), number_check_fail, keydigest64,
+                          resolver.nameservers)
                 for response in resolver.query(dnsrr_domain, rdtype="TXT").rrset:
                     log.debug("  - Found value %s", response.to_text())
                     challenge_verified = (challenge_verified
@@ -281,7 +284,8 @@ def get_crt(config, log=LOGGER):
             _update_dns(dnsrr_set, "delete")
 
     log.info("Request to finalize the order (all chalenge have been completed)")
-    csr_der = _base64(_openssl("req", ["-in", config["acmednstiny"]["CSRFile"], "-outform", "DER"]))
+    csr_der = _base64(_openssl("req", ["-in", config["acmednstiny"]["CSRFile"],
+                                       "-outform", "DER"]))
     http_response, result = _send_signed_request(order["finalize"], {"csr": csr_der})
     if http_response.status_code != 200:
         raise ValueError("Error while sending the CSR: {0} {1}"

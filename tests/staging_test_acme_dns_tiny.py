@@ -206,13 +206,15 @@ class TestACMEDNSTiny(unittest.TestCase):
         """Can't use the account key for the CSR."""
         self.assertRaisesRegex(ValueError,
                                "certificate public key must be different than account key",
-                               acme_dns_tiny.main, [self.configs['account_as_domain'], "--verbose"])
+                               acme_dns_tiny.main, [self.configs['account_as_domain'],
+                                                    "--verbose"])
 
     def test_failure_dns_update_tsigkeyname(self):
         """Fail to update DNS records by invalid TSIG Key name."""
         self.assertRaisesRegex(ValueError,
                                "Error updating DNS",
-                               acme_dns_tiny.main, [self.configs['invalid_tsig_name'], "--verbose"])
+                               acme_dns_tiny.main, [self.configs['invalid_tsig_name'],
+                                                    "--verbose"])
 
 
 if __name__ == "__main__":  # pragma: no cover
