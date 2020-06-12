@@ -91,7 +91,7 @@ def get_crt(config, log=LOGGER):
     if common_name is not None:
         domains.add(common_name.group(1))
     subject_alt_names = re.search(
-        r"X509v3 Subject Alternative Name: (?:critical)?\r?\n +([^\r\n]+)\r?\n",
+        r"X509v3 Subject Alternative Name: (?:critical)?\s+?([^\r\n]+)\r?\n",
         csr, re.MULTILINE)
     if subject_alt_names is not None:
         for san in subject_alt_names.group(1).split(", "):
@@ -123,7 +123,7 @@ def get_crt(config, log=LOGGER):
     accountkey = _openssl("rsa", ["-in", config["acmednstiny"]["AccountKeyFile"],
                                   "-noout", "-text"])
     pub_hex, pub_exp = re.search(
-        r"modulus:\r?\n\s+00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
+        r"modulus:\s+?00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
         accountkey.decode("utf8"), re.MULTILINE).groups()
     pub_exp = "{0:x}".format(int(pub_exp))
     pub_exp = "0{0}".format(pub_exp) if len(pub_exp) % 2 else pub_exp
