@@ -213,8 +213,7 @@ def get_crt(config, log=LOGGER):
 
         log.info("Install DNS TXT resource for domain: %s", domain)
         challenge = [c for c in authorization["challenges"] if c["type"] == "dns-01"][0]
-        token = re.sub(r"[^A-Za-z0-9_\-]", "_", challenge["token"])
-        keyauthorization = "{0}.{1}".format(token, jwk_thumbprint)
+        keyauthorization = challenge["token"] + "." + jwk_thumbprint
         keydigest64 = _base64(hashlib.sha256(keyauthorization.encode("utf8")).digest())
         dnsrr_domain = "_acme-challenge.{0}.".format(domain)
         try:  # a CNAME resource can be used for advanced TSIG configuration
@@ -261,8 +260,7 @@ def get_crt(config, log=LOGGER):
                     time.sleep(config["DNS"].getint("TTL"))
 
         log.info("Asking ACME server to validate challenge.")
-        http_response, result = _send_signed_request(challenge["url"],
-                                                     {"keyAuthorization": keyauthorization})
+        http_response, result = _send_signed_request(challenge["url"], {})
         if http_response.status_code != 200:
             raise ValueError("Error triggering challenge: {0} {1}"
                              .format(http_response.status_code, result))
