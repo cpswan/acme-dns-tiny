@@ -19,11 +19,13 @@ TSIGALGORITHM = os.getenv("GITLABCI_TSIGALGORITHM")
 CONTACT = os.getenv("GITLABCI_CONTACT")
 
 
-def generate_config():
+def generate_config(account_key_path=None):
     """Generate basic acme-dns-tiny configuration"""
-    # Account key
-    account_key = NamedTemporaryFile(delete=False)
-    Popen(["openssl", "genrsa", "-out", account_key.name, "2048"]).wait()
+    # Account key should be created if not given
+    if account_key_path is None:
+        account_key = NamedTemporaryFile(delete=False)
+        Popen(["openssl", "genrsa", "-out", account_key.name, "2048"]).wait()
+        account_key_path = account_key.name
 
     # Domain key and CSR
     domain_key = NamedTemporaryFile(delete=False)
@@ -34,7 +36,7 @@ def generate_config():
     # acme-dns-tiny configuration
     parser = configparser.ConfigParser()
     parser.read("./example.ini")
-    parser["acmednstiny"]["AccountKeyFile"] = account_key.name
+    parser["acmednstiny"]["AccountKeyFile"] = account_key_path
     parser["acmednstiny"]["CSRFile"] = domain_csr.name
     parser["acmednstiny"]["ACMEDirectory"] = ACMEDIRECTORY
     if CONTACT:
@@ -49,7 +51,7 @@ def generate_config():
     parser["DNS"]["Zone"] = DNSZONE
     parser["DNS"]["TTL"] = DNSTTL
 
-    return account_key.name, domain_key.name, domain_csr.name, parser
+    return account_key_path, domain_key.name, domain_csr.name, parser
 
 
 def generate_acme_dns_tiny_unit_test_config():
@@ -77,7 +79,7 @@ def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many
         config.write(configfile)
 
     # Simple configuration with good options, without contacts field
-    account_key, domain_key, _, config = generate_config()
+    _, domain_key, _, config = generate_config(account_key)
     os.remove(domain_key)
 
     config.remove_option("acmednstiny", "Contacts")
@@ -87,7 +89,7 @@ def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many
         config.write(configfile)
 
     # Simple configuration without CSR in configuration (will be passed as argument)
-    account_key, domain_key, cname_csr, config = generate_config()
+    _, domain_key, cname_csr, config = generate_config(account_key)
     os.remove(domain_key)
 
     config.remove_option("acmednstiny", "CSRFile")
@@ -97,7 +99,7 @@ def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many
         config.write(configfile)
 
     # Configuration with CSR containing a wildcard domain
-    account_key, domain_key, domain_csr, config = generate_config()
+    _, domain_key, domain_csr, config = generate_config(account_key)
 
     Popen(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", domain_key,
            "-subj", "/CN=*.{0}".format(DOMAIN), "-out", domain_csr]).wait()
@@ -108,7 +110,7 @@ def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many
         config.write(configfile)
 
     # Configuration with IP as DNS Host
-    account_key, domain_key, _, config = generate_config()
+    _, domain_key, _, config = generate_config(account_key)
     os.remove(domain_key)
 
     config["DNS"]["Host"] = DNSHOSTIP
@@ -118,7 +120,7 @@ def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many
         config.write(configfile)
 
     # Configuration with CSR using subject alt-name domain instead of CN (common name)
-    account_key, domain_key, domain_csr, config = generate_config()
+    _, domain_key, domain_csr, config = generate_config(account_key)
 
     san_conf = NamedTemporaryFile(delete=False)
     with open("/etc/ssl/openssl.cnf", 'r') as opensslcnf:
@@ -136,7 +138,7 @@ def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many
         config.write(configfile)
 
     # Configuration with CSR containing a wildcard domain inside subjetcAltName
-    account_key, domain_key, domain_csr, config = generate_config()
+    _, domain_key, domain_csr, config = generate_config(account_key)
 
     wild_san_conf = NamedTemporaryFile(delete=False)
     with open("/etc/ssl/openssl.cnf", 'r') as opensslcnf:
@@ -154,34 +156,13 @@ def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many
     with open(wild_san.name, 'w') as configfile:
         config.write(configfile)
 
-    # Bad configuration with weak 1024 bit account key
-    account_key, domain_key, _, config = generate_config()
+    # Invalid TSIG key name
+    _, domain_key, _, config = generate_config(account_key)
     os.remove(domain_key)
 
-    Popen(["openssl", "genrsa", "-out", account_key, "1024"]).wait()
-
-    weak_key = NamedTemporaryFile(delete=False)
-    with open(weak_key.name, 'w') as configfile:
-        config.write(configfile)
-
-    # Bad configuration with account key as domain key
-    account_key, domain_key, domain_csr, config = generate_config()
-    os.remove(domain_key)
-
-    # Create a new CSR signed with the account key instead of domain key
-    Popen(["openssl", "req", "-new", "-sha256", "-key", account_key,
-           "-subj", "/CN={0}".format(DOMAIN), "-out", domain_csr]).wait()
-
-    account_as_domain = NamedTemporaryFile(delete=False)
-    with open(account_as_domain.name, 'w') as configfile:
-        config.write(configfile)
-
-    # Create config parser from the good default config to generate custom configs
-    account_key, domain_key, _, config = generate_config()
-    os.remove(domain_key)
+    config["TSIGKeyring"]["KeyName"] = "{0}.invalid".format(TSIGKEYNAME)
 
     invalid_tsig_name = NamedTemporaryFile(delete=False)
-    config["TSIGKeyring"]["KeyName"] = "{0}.invalid".format(TSIGKEYNAME)
     with open(invalid_tsig_name.name, 'w') as configfile:
         config.write(configfile)
 
@@ -194,8 +175,6 @@ def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many
         "dns_host_ip": dns_host_ip.name,
         "good_san": good_san.name,
         "wild_san": wild_san.name,
-        "weak_key": weak_key.name,
-        "account_as_domain": account_as_domain.name,
         "invalid_tsig_name": invalid_tsig_name.name,
         # cname CSR file to use with good_cname_without_csr as argument
         "cname_csr": cname_csr,
