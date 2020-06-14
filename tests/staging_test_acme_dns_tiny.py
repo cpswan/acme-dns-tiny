@@ -196,23 +196,10 @@ class TestACMEDNSTiny(unittest.TestCase):
 
         self._assert_certificate_chain(certchain)
 
-    def test_weak_key(self):
-        """Let's Encrypt rejects weak keys."""
-        self.assertRaisesRegex(ValueError,
-                               "key too small",
-                               acme_dns_tiny.main, [self.configs['weak_key'], "--verbose"])
-
-    def test_account_key_domain(self):
-        """Can't use the account key for the CSR."""
-        self.assertRaisesRegex(ValueError,
-                               "certificate public key must be different than account key",
-                               acme_dns_tiny.main, [self.configs['account_as_domain'],
-                                                    "--verbose"])
-
     def test_failure_dns_update_tsigkeyname(self):
         """Fail to update DNS records by invalid TSIG Key name."""
         self.assertRaisesRegex(ValueError,
-                               "Error updating DNS",
+                               "Error updating DNS records",
                                acme_dns_tiny.main, [self.configs['invalid_tsig_name'],
                                                     "--verbose"])
 
