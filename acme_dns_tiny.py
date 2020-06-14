@@ -260,8 +260,7 @@ def get_crt(config, log=LOGGER):
                     time.sleep(config["DNS"].getint("TTL"))
 
         log.info("Asking ACME server to validate challenge.")
-        http_response, result = _send_signed_request(challenge["url"],
-                                                     {"keyAuthorization": keyauthorization})
+        http_response, result = _send_signed_request(challenge["url"], {})
         if http_response.status_code != 200:
             raise ValueError("Error triggering challenge: {0} {1}"
                              .format(http_response.status_code, result))
