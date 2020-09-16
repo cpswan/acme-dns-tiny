@@ -224,7 +224,7 @@ def get_crt(config, log=LOGGER):
                      dnsrr_domain)
         except dns.exception.DNSException as dnsexception:
             log.debug(("  - Not any CNAME resource has been found for this domain (%s), will "
-                       "install TXT directly on %s"), dnsrr_domain, type(dnsexception).__name__)
+                       "install TXT directly on %s"), type(dnsexception).__name__, dnsrr_domain)
         dnsrr_set = dns.rrset.from_text(dnsrr_domain, config["DNS"].getint("TTL"),
                                         "IN", "TXT", '"{0}"'.format(keydigest64))
         try:
