@@ -7,6 +7,9 @@ stages:
 .build:
   stage: build
   image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_BUILDKIT: 1
   only:
     - merge_requests
     - master
@@ -41,20 +44,26 @@ stages:
 jessie-slim:
   extends: .build
   script:
-  - docker build -t "acme-dns-tiny:jessie-slim"
-                 -f "docker/jessie/Dockerfile" .
+  - docker build
+    --progress plain
+    -t "acme-dns-tiny:jessie-slim"
+    -f "docker/jessie/Dockerfile" .
 
 stretch-slim:
   extends: .build
   script:
-  - docker build -t "acme-dns-tiny:stretch-slim"
-                 -f "docker/stretch/Dockerfile" .
+  - docker build 
+    --progress plain
+    -t "acme-dns-tiny:stretch-slim"
+    -f "docker/stretch/Dockerfile" .
 
 buster-slim:
   extends: .build
   script:
-  - docker build -t "acme-dns-tiny:buster-slim"
-                 -f "docker/buster/Dockerfile" .
+  - docker build
+    --progress plain
+    -t "acme-dns-tiny:buster-slim"
+    -f "docker/buster/Dockerfile" .
 
 compile:
   extends: .check
