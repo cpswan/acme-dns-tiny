@@ -1,4 +1,4 @@
-FROM debian:jessie-slim
+FROM debian:stretch-slim
 
 WORKDIR acme_dns_tiny
 
