@@ -132,16 +132,11 @@ class TestACMEDNSTiny(unittest.TestCase):
         self._assert_certificate_chain(certchain)
 
     def test_success_dnshost_ip(self):
-        """When DNS Host is an IP, DNS resolution have to fail without error."""
+        """Successfully issue a certificate when DNS Host is defined as an IP address."""
         old_stdout = sys.stdout
         sys.stdout = StringIO()
 
-        with self.assertLogs(level='INFO') as adnslog:
-            acme_dns_tiny.main([self.configs['dns_host_ip'],
-                                "--verbose"])
-        self.assertIn(("INFO:acme_dns_tiny:A and/or AAAA DNS resources not found for configured "
-                       "dns host: we will use either resource found if one exists or directly the "
-                       "DNS Host configuration."), adnslog.output)
+        acme_dns_tiny.main([self.configs['dns_host_ip'], "--verbose"])
         certchain = sys.stdout.getvalue()
 
         sys.stdout.close()
@@ -198,8 +193,9 @@ class TestACMEDNSTiny(unittest.TestCase):
 
     def test_failure_dns_update_tsigkeyname(self):
         """Fail to update DNS records by invalid TSIG Key name."""
-        self.assertRaisesRegex(ValueError,
-                               "Error updating DNS records",
+        self.assertRaisesRegex(RuntimeError,
+                               "Unable to add DNS resource to _acme-challenge.{0}."
+                               .format(os.getenv("GITLABCI_DOMAIN")),
                                acme_dns_tiny.main, [self.configs['invalid_tsig_name'],
                                                     "--verbose"])
 

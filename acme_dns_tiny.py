@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # pylint: disable=multiple-imports
 """ACME client to met DNS challenge and receive TLS certificate"""
-import argparse, base64, binascii, configparser, copy, hashlib, json, logging
+import argparse, base64, binascii, configparser, copy, hashlib, ipaddress, json, logging
 import re, sys, subprocess, time
 import requests, dns.resolver, dns.tsigkeyring, dns.update
 
@@ -29,7 +29,7 @@ def _openssl(command, options, communicate=None):
 def get_crt(config, log=LOGGER):
     """Get ACME certificate by resolving DNS challenge."""
 
-    def _update_dns(rrset, action):
+    def _update_dns(rrset, action, resolver):
         """Updates DNS resource by adding or deleting resource."""
         algorithm = dns.name.from_text("{0}".format(config["TSIGKeyring"]["Algorithm"].lower()))
         dns_update = dns.update.Update(config["DNS"]["zone"],
@@ -38,9 +38,23 @@ def get_crt(config, log=LOGGER):
             dns_update.add(rrset.name, rrset)
         elif action == "delete":
             dns_update.delete(rrset.name, rrset)
-        response = dns.query.tcp(dns_update, config["DNS"]["Host"],
-                                 port=config.getint("DNS", "Port"))
-        dns_update = None
+        # Try each IP address found for the configured DNS Host to apply the DNS resource update
+        response = None
+        for nameserver in resolver.nameservers:
+            try:
+                response = dns.query.tcp(dns_update, nameserver,
+                                         port=config.getint("DNS", "Port"))
+            # pylint: disable=broad-except
+            except Exception as exception:
+                log.debug("Unable to %s DNS resource on server with IP %s, try again with "
+                          "next available IP. Error detail: %s", action, nameserver, exception)
+                response = None
+            finally:
+                dns_update = None
+            if response is not None:
+                break
+        if response is None:
+            raise RuntimeError("Unable to {0} DNS resource to {1}".format(action, rrset.name))
         return response
 
     def _send_signed_request(url, payload, extra_headers=None):
@@ -108,15 +122,23 @@ def get_crt(config, log=LOGGER):
     resolver.retry_servfail = True
     nameserver = []
     try:
-        nameserver = [ipv4_rrset.to_text() for ipv4_rrset
-                      in dns.resolver.query(config["DNS"]["Host"], rdtype="A")]
-        nameserver = nameserver + [ipv6_rrset.to_text() for ipv6_rrset
-                                   in dns.resolver.query(config["DNS"]["Host"], rdtype="AAAA")]
-    except dns.exception.DNSException:
-        log.info(("A and/or AAAA DNS resources not found for configured dns host: we will use "
-                  "either resource found if one exists or directly the DNS Host configuration."))
+        ipaddress.ip_address(config["DNS"]["Host"])
+        nameserver += config["DNS"]["Host"]
+    except ValueError:
+        log.debug("  - Configured DNS Host value is not a valid IP address, "
+                  "try to resolve IP address by requesting system DNS servers.")
+        try:
+            nameserver += [ipv6_rrset.to_text() for ipv6_rrset
+                           in dns.resolver.query(config["DNS"]["Host"], rdtype="AAAA")]
+        except dns.exception.DNSException:
+            log.debug(("  - IPv6 addresses not found for the configured DNS Host."))
+        try:
+            nameserver += [ipv4_rrset.to_text() for ipv4_rrset
+                           in dns.resolver.query(config["DNS"]["Host"], rdtype="A")]
+        except dns.exception.DNSException:
+            log.debug("  - IPv4 addresses not found for the configured DNS Host.")
     if not nameserver:
-        nameserver = [config["DNS"]["Host"]]
+        raise ValueError("Unable to resolve any IP address for the configured DNS Host name")
     resolver.nameservers = nameserver
 
     log.info("Get private signature from account key.")
@@ -228,7 +250,7 @@ def get_crt(config, log=LOGGER):
         dnsrr_set = dns.rrset.from_text(dnsrr_domain, config["DNS"].getint("TTL"),
                                         "IN", "TXT", '"{0}"'.format(keydigest64))
         try:
-            _update_dns(dnsrr_set, "add")
+            _update_dns(dnsrr_set, "add", resolver)
         except dns.exception.DNSException as dnsexception:
             raise ValueError("Error updating DNS records: {0} : {1}"
                              .format(type(dnsexception).__name__, str(dnsexception)))
@@ -279,7 +301,7 @@ def get_crt(config, log=LOGGER):
                     raise ValueError("Challenge for domain {0} did not pass: {1}".format(
                         domain, challenge_status))
         finally:
-            _update_dns(dnsrr_set, "delete")
+            _update_dns(dnsrr_set, "delete", resolver)
 
     log.info("Request to finalize the order (all chalenge have been completed)")
     csr_der = _base64(_openssl("req", ["-in", config["acmednstiny"]["CSRFile"],
