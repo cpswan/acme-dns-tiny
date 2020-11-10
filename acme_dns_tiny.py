@@ -233,8 +233,19 @@ def get_crt(config, log=LOGGER):
                              .format(http_response.status_code, authorization))
         domain = authorization["identifier"]["value"]
 
+        if authorization["status"] == "valid":
+            log.info("Skip authorization for domain %s: this is alreday validated", domain)
+            continue
+        if authorization["status"] != "pending":
+            raise ValueError("Authorization for the domain {0} can't be validated: "
+                             "the authorization is {1}.".format(domain, authorization["status"]))
+
+        challenges = [c for c in authorization["challenges"] if c["type"] == "dns-01"]
+        if not challenges:
+            raise ValueError("Unable to find a DNS challenge to resolve for domain {0}"
+                             .format(domain))
         log.info("Install DNS TXT resource for domain: %s", domain)
-        challenge = [c for c in authorization["challenges"] if c["type"] == "dns-01"][0]
+        challenge = challenges[0]
         keyauthorization = challenge["token"] + "." + jwk_thumbprint
         keydigest64 = _base64(hashlib.sha256(keyauthorization.encode("utf8")).digest())
         dnsrr_domain = "_acme-challenge.{0}.".format(domain)
