@@ -262,9 +262,9 @@ def get_crt(config, log=LOGGER):
                                         "IN", "TXT", '"{0}"'.format(keydigest64))
         try:
             _update_dns(dnsrr_set, "add", resolver)
-        except dns.exception.DNSException as dnsexception:
+        except dns.exception.DNSException as exception:
             raise ValueError("Error updating DNS records: {0} : {1}"
-                             .format(type(dnsexception).__name__, str(dnsexception)))
+                             .format(type(exception).__name__, str(exception))) from exception
 
         log.info("Wait for 1 TTL (%s seconds) to ensure DNS cache is cleared.",
                  config["DNS"].getint("TTL"))
