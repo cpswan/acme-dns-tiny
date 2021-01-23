@@ -1,3 +1,7 @@
+###
+### Pipeline(s) definition (stages and "only" keys)
+###
+
 stages:
   - build
   - check
@@ -6,43 +10,41 @@ stages:
 
 .build:
   stage: build
-  image: docker:stable
-  variables:
-    DOCKER_DRIVER: overlay2
-    DOCKER_BUILDKIT: 1
   only:
     - merge_requests
     - master
 
 .check:
   stage: check
-  image: acme-dns-tiny:buster-slim
   only:
     - merge_requests
     - master
 
 .unit_test:
   stage: unit_test
-  script:
-    - python3-coverage run --append --source ./ -m unittest -v
-      tests.unit_test_acme_dns_tiny
   only:
     - merge_requests
     - master
 
 .lets_encrypt_staging:
   stage: lets_encrypt_staging
-  script:
-    - python3-coverage run --append --source ./ -m unittest -v
-      tests.staging_test_acme_dns_tiny
-      tests.staging_test_acme_account_rollover
-      tests.staging_test_acme_account_deactivate
   only:
     - merge_requests
     - master
 
-jessie-slim:
+###
+### Stage: build
+###
+
+.build-common:
   extends: .build
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_BUILDKIT: 1
+
+jessie-slim:
+  extends: .build-common
   script:
   - docker build
     --progress plain
@@ -50,7 +52,7 @@ jessie-slim:
     -f "docker/jessie/Dockerfile" .
 
 stretch-slim:
-  extends: .build
+  extends: .build-common
   script:
   - docker build 
     --progress plain
@@ -58,20 +60,28 @@ stretch-slim:
     -f "docker/stretch/Dockerfile" .
 
 buster-slim:
-  extends: .build
+  extends: .build-common
   script:
   - docker build
     --progress plain
     -t "acme-dns-tiny:buster-slim"
     -f "docker/buster/Dockerfile" .
 
-compile:
+###
+### Stage: check
+###
+
+.check-common:
   extends: .check
+  image: acme-dns-tiny:buster-slim
+
+compile:
+  extends: .check-common
   script:
     - python3 -m py_compile acme_dns_tiny.py tools/*.py tests/*.py
 
 lint:
-  extends: .check
+  extends: .check-common
   script:
     - pylint3 --max-line-length=99 acme_dns_tiny.py
     - pylint3 --max-line-length=99 tools/acme_account_deactivate.py
@@ -83,36 +93,58 @@ lint:
     - pylint3 --max-line-length=99 tests/staging_test_acme_account_rollover.py
 
 pep8:
-  extends: .check
+  extends: .check-common
   script:
     - pycodestyle --max-line-length=99 --ignore=E401,W503 --exclude=tests .
     - pycodestyle --max-line-length=99 --ignore=E722 tests
 
-jessie-ut:
+###
+### Stage: unit_test
+###
+
+.unit_test-common:
   extends: .unit_test
+  script:
+    - python3-coverage run --append --source ./ -m unittest -v
+      tests.unit_test_acme_dns_tiny
+
+jessie-ut:
+  extends: .unit_test-common
   image: acme-dns-tiny:jessie-slim
 
 stretch-ut:
-  extends: .unit_test
+  extends: .unit_test-common
   image: acme-dns-tiny:stretch-slim
 
 buster-ut:
-  extends: .unit_test
+  extends: .unit_test-common
   image: acme-dns-tiny:buster-slim
   artifacts:
     paths:
       - .coverage
 
-jessie-le-staging:
+###
+### Stage: lets_encrypt_staging
+###
+
+.lets_encrypt_staging-common:
   extends: .lets_encrypt_staging
+  script:
+    - python3-coverage run --append --source ./ -m unittest -v
+      tests.staging_test_acme_dns_tiny
+      tests.staging_test_acme_account_rollover
+      tests.staging_test_acme_account_deactivate
+
+jessie-le-staging:
+  extends: .lets_encrypt_staging-common
   image: acme-dns-tiny:jessie-slim
 
 stretch-le-staging:
-  extends: .lets_encrypt_staging
+  extends: .lets_encrypt_staging-common
   image: acme-dns-tiny:stretch-slim
 
 buster-le-staging:
-  extends: .lets_encrypt_staging
+  extends: .lets_encrypt_staging-common
   image: acme-dns-tiny:buster-slim
   after_script:
     - python3-coverage report
