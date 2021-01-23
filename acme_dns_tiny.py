@@ -49,8 +49,6 @@ def get_crt(config, log=LOGGER):
                 log.debug("Unable to %s DNS resource on server with IP %s, try again with "
                           "next available IP. Error detail: %s", action, nameserver, exception)
                 response = None
-            finally:
-                dns_update = None
             if response is not None:
                 break
         if response is None:
