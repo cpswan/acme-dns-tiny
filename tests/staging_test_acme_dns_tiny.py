@@ -67,12 +67,11 @@ class TestACMEDNSTiny(unittest.TestCase):
 
     # helper function to valid success by making assertion on returned certificate chain
     def _assert_certificate_chain(self, cert_chain):
-        # Output have to contains two certificates
-        certlist = cert_chain.split("-----BEGIN CERTIFICATE-----")
-        self.assertEqual(3, len(certlist))
-        self.assertEqual('', certlist[0])
-        self.assertIn("-----END CERTIFICATE-----{0}".format(os.linesep), certlist[1])
-        self.assertIn("-----END CERTIFICATE-----{0}".format(os.linesep), certlist[2])
+        # Output have to contain at least two certificates to create a chain
+        certlist = list(filter(None, cert_chain.split("-----BEGIN CERTIFICATE-----")))
+        self.assertTrue(len(certlist) >= 2)
+        for cert in certlist:
+            self.assertIn("-----END CERTIFICATE-----", cert)
         # Use openssl to check validity of chain and simple test of readability
         readablecertchain = _openssl("x509", ["-text", "-noout"],
                                      cert_chain.encode("utf8"))
