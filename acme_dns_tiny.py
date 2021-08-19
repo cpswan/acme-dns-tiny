@@ -181,7 +181,7 @@ def get_crt(config, log=LOGGER):
         private_acme_signature["kid"] = http_response.headers['Location']
         log.debug("  - Account is already registered: '%s'", private_acme_signature["kid"])
 
-        http_response, account_info = _send_signed_request(private_acme_signature["kid"], {})
+        http_response, account_info = _send_signed_request(private_acme_signature["kid"], "")
     else:
         raise ValueError("Error registering account: {0} {1}"
                          .format(http_response.status_code, account_info))
