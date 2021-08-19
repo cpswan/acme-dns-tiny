@@ -8,6 +8,7 @@ from subprocess import Popen
 DOMAIN = os.getenv("GITLABCI_DOMAIN")
 ACMEDIRECTORY = os.getenv("GITLABCI_ACMEDIRECTORY_V2",
                           "https://acme-staging-v02.api.letsencrypt.org/directory")
+IS_PEBBLE = ACMEDIRECTORY.startswith('https://pebble')
 DNSHOST = os.getenv("GITLABCI_DNSHOST")
 DNSHOSTIP = os.getenv("GITLABCI_DNSHOSTIP")
 DNSZONE = os.getenv("GITLABCI_DNSZONE")
@@ -30,8 +31,19 @@ def generate_config(account_key_path=None):
     # Domain key and CSR
     domain_key = NamedTemporaryFile(delete=False)
     domain_csr = NamedTemporaryFile(delete=False)
-    Popen(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", domain_key.name,
-           "-subj", "/CN={0}".format(DOMAIN), "-out", domain_csr.name]).wait()
+    if IS_PEBBLE:  # Pebble server enforces usage of SAN instead of CN
+        san_conf = NamedTemporaryFile(delete=False)
+        with open("/etc/ssl/openssl.cnf", 'r') as opensslcnf:
+            san_conf.write(opensslcnf.read().encode("utf8"))
+        san_conf.write("\n[SAN]\nsubjectAltName=DNS:{0}\n".format(DOMAIN).encode("utf8"))
+        san_conf.seek(0)
+        Popen(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", domain_key.name,
+               "-subj", "/", "-reqexts", "SAN", "-config", san_conf.name,
+               "-out", domain_csr.name]).wait()
+        os.remove(san_conf.name)
+    else:
+        Popen(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", domain_key.name,
+               "-subj", "/CN={0}".format(DOMAIN), "-out", domain_csr.name]).wait()
 
     # acme-dns-tiny configuration
     parser = configparser.ConfigParser()
@@ -101,8 +113,19 @@ def generate_acme_dns_tiny_config():  # pylint: disable=too-many-locals,too-many
     # Configuration with CSR containing a wildcard domain
     _, domain_key, domain_csr, config = generate_config(account_key)
 
-    Popen(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", domain_key,
-           "-subj", "/CN=*.{0}".format(DOMAIN), "-out", domain_csr]).wait()
+    if IS_PEBBLE:  # Pebble server enforces usage of SAN instead of CN
+        san_conf = NamedTemporaryFile(delete=False)
+        with open("/etc/ssl/openssl.cnf", 'r') as opensslcnf:
+            san_conf.write(opensslcnf.read().encode("utf8"))
+        san_conf.write("\n[SAN]\nsubjectAltName=DNS:*.{0}\n".format(DOMAIN).encode("utf8"))
+        san_conf.seek(0)
+        Popen(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", domain_key,
+               "-subj", "/", "-reqexts", "SAN", "-config", san_conf.name,
+               "-out", domain_csr]).wait()
+        os.remove(san_conf.name)
+    else:
+        Popen(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", domain_key,
+               "-subj", "/CN=*.{0}".format(DOMAIN), "-out", domain_csr]).wait()
     os.remove(domain_key)
 
     wild_cname = NamedTemporaryFile(delete=False)

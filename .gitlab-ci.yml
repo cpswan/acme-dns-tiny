@@ -6,6 +6,8 @@ stages:
   - build
   - check
   - unit_test
+  - pebble_strict
+  - pebble_breaking
   - lets_encrypt_staging
 
 .build:
@@ -22,6 +24,18 @@ stages:
 
 .unit_test:
   stage: unit_test
+  only:
+    - merge_requests
+    - master
+
+.pebble_strict:
+  stage: pebble_strict
+  only:
+    - merge_requests
+    - master
+
+.pebble_breaking:
+  stage: pebble_breaking
   only:
     - merge_requests
     - master
@@ -124,27 +138,38 @@ buster-ut:
       - .coverage
 
 ###
-### Stage: lets_encrypt_staging
+### Stage: pebble strict
 ###
 
-.lets_encrypt_staging-common:
-  extends: .lets_encrypt_staging
+.pebble_strict_common:
+  extends: .pebble_strict
+  variables:
+    GITLABCI_ACMEDIRECTORY_V2: https://pebble:14000/dir
+    REQUESTS_CA_BUNDLE: "./tests/pebble.pem"
+    # Never reject valid nonce, because, as script is tiny it doesn't manage it (user can run it again)
+    PEBBLE_WFE_NONCEREJECT: 0
+    # Never reuse already validated authorizations, so tests always have to validate challenges
+    PEBBLE_AUTHZREUSE: 0
+  services:
+    - name: letsencrypt/pebble:latest
+      command: ["pebble", "-strict", "false"]
+      alias: pebble
   script:
     - python3-coverage run --append --source ./ -m unittest -v
       tests.staging_test_acme_dns_tiny
       tests.staging_test_acme_account_rollover
       tests.staging_test_acme_account_deactivate
 
-jessie-le-staging:
-  extends: .lets_encrypt_staging-common
+jessie-pebble:
+  extends: .pebble_strict_common
   image: acme-dns-tiny:jessie-slim
 
-stretch-le-staging:
-  extends: .lets_encrypt_staging-common
+stretch-pebble:
+  extends: .pebble_strict_common
   image: acme-dns-tiny:stretch-slim
 
-buster-le-staging:
-  extends: .lets_encrypt_staging-common
+buster-pebble:
+  extends: .pebble_strict_common
   image: acme-dns-tiny:buster-slim
   after_script:
     - python3-coverage report
@@ -153,3 +178,37 @@ buster-le-staging:
   artifacts:
     paths:
      - htmlcov
+
+###
+### Stage: pebble breaking changes allow to detect future change breaks
+###
+
+.pebble_breaking_common:
+  extends:
+    - .pebble_strict_common
+    - .pebble_breaking
+  services:
+    - name: letsencrypt/pebble:latest
+      command: ["pebble", "-strict", "true"]
+      alias: pebble
+  allow_failure: true
+
+buster_pebble_breaking:
+  extends: .pebble_breaking_common
+  image: acme-dns-tiny:buster-slim
+
+###
+### Stage: Let's Encrypt staging
+###
+
+.lets_encrypt_staging_common:
+  extends: .lets_encrypt_staging
+  script:
+    - python3-coverage run --append --source ./ -m unittest -v
+      tests.staging_test_acme_dns_tiny
+      tests.staging_test_acme_account_rollover
+      tests.staging_test_acme_account_deactivate
+
+buster-le-staging:
+  extends: .lets_encrypt_staging_common
+  image: acme-dns-tiny:buster-slim
