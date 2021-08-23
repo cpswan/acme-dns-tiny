@@ -63,6 +63,8 @@ def account_rollover(old_accountkeypath, new_accountkeypath, acme_directory, log
             protected = copy.deepcopy(private_acme_new_signature)
         elif keypath == old_accountkeypath:
             protected = copy.deepcopy(private_acme_old_signature)
+        else:
+          raise RuntimeError("Unknown keypath to sign request")
 
         if is_inner or url == acme_config["newAccount"]:
             if "kid" in protected:
