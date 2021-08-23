@@ -339,7 +339,7 @@ def get_crt(config, log=LOGGER):
             break
         else:
             raise ValueError("Finalizing order {0} got errors: {1}".format(
-                domain, order))
+                order_location, order))
 
     http_response, result = _send_signed_request(
         order["certificate"], "",
