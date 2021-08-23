@@ -146,9 +146,11 @@ def get_crt(config, log=LOGGER):
     log.info("Get private signature from account key.")
     accountkey = _openssl("rsa", ["-in", config["acmednstiny"]["AccountKeyFile"],
                                   "-noout", "-text"])
-    pub_hex, pub_exp = re.search(
-        r"modulus:\s+?00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
-        accountkey.decode("utf8"), re.MULTILINE).groups()
+    signature_search = re.search(r"modulus:\s+?00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
+        accountkey.decode("utf8"), re.MULTILINE)
+    if signature_search is None:
+        raise ValueError("Unable to retrieve private signature.");
+    pub_hex, pub_exp = signature_search.groups()
     pub_exp = "{0:x}".format(int(pub_exp))
     pub_exp = "0{0}".format(pub_exp) if len(pub_exp) % 2 else pub_exp
     # That signature is used to authenticate with the ACME server, it needs to be safely kept
