@@ -121,7 +121,7 @@ def get_crt(config, log=LOGGER):
     nameserver = []
     try:
         ipaddress.ip_address(config["DNS"]["Host"])
-        nameserver += config["DNS"]["Host"]
+        nameserver.append(config["DNS"]["Host"])
     except ValueError:
         log.debug("  - Configured DNS Host value is not a valid IP address, "
                   "try to resolve IP address by requesting system DNS servers.")
