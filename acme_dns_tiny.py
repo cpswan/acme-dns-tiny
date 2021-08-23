@@ -65,6 +65,7 @@ def get_crt(config, log=LOGGER):
             payload64 = _base64(json.dumps(payload).encode("utf8"))
         protected = copy.deepcopy(private_acme_signature)
         protected["nonce"] = nonce or requests.get(acme_config["newNonce"]).headers['Replay-Nonce']
+        del nonce
         protected["url"] = url
         if url == acme_config["newAccount"]:
             if "kid" in protected:
@@ -84,12 +85,14 @@ def get_crt(config, log=LOGGER):
             response = requests.post(url, json=jose, headers=joseheaders)
         except requests.exceptions.RequestException as error:
             response = error.response
-        finally:
+        if response:
             nonce = response.headers['Replay-Nonce']
-        try:
-            return response, response.json()
-        except ValueError:  # if body is empty or not JSON formatted
-            return response, json.loads("{}")
+            try:
+                return response, response.json()
+            except ValueError:  # if body is empty or not JSON formatted
+                return response, json.loads("{}")
+        else:
+          raise RuntimeError("Unable to get response from ACME server.")
 
     # main code
     adtheaders = {'User-Agent': 'acme-dns-tiny/2.2',
