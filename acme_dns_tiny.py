@@ -88,7 +88,7 @@ def get_crt(config, log=LOGGER):
         try:
             return response, response.json()
         except ValueError:  # if body is empty or not JSON formatted
-            return response, json.dumps({})
+            return response, json.loads("{}")
 
     # main code
     adtheaders = {'User-Agent': 'acme-dns-tiny/2.2',
