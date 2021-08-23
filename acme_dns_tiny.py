@@ -3,7 +3,8 @@
 """ACME client to met DNS challenge and receive TLS certificate"""
 import argparse, base64, binascii, configparser, copy, hashlib, ipaddress, json, logging
 import re, sys, subprocess, time
-import requests, dns.resolver, dns.tsigkeyring, dns.update
+import requests
+import dns.exception, dns.query, dns.name, dns.resolver, dns.rrset, dns.tsigkeyring, dns.update
 
 LOGGER = logging.getLogger('acme_dns_tiny')
 LOGGER.addHandler(logging.StreamHandler())
