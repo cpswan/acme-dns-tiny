@@ -324,9 +324,9 @@ def get_crt(config, log=LOGGER):
         http_response, order = _send_signed_request(order_location, "")
 
         if order["status"] == "processing":
-            if http_response.headers["Retry-After"]:
-                time.sleep(http_response.headers["Retry-After"])
-            else:
+            try:
+                time.sleep(float(http_response.headers["Retry-After"]))
+            except (OverflowError, ValueError, TypeError):
                 time.sleep(2)
         elif order["status"] == "valid":
             log.info("Order finalized!")
