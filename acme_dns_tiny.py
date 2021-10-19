@@ -238,7 +238,7 @@ def get_crt(config, log=LOGGER):
         domain = authorization["identifier"]["value"]
 
         if authorization["status"] == "valid":
-            log.info("Skip authorization for domain %s: this is alreday validated", domain)
+            log.info("Skip authorization for domain %s: this is already validated", domain)
             continue
         if authorization["status"] != "pending":
             raise ValueError("Authorization for the domain {0} can't be validated: "
