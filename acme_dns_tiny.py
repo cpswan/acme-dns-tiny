@@ -318,7 +318,7 @@ def get_crt(config, log=LOGGER):
         finally:
             _update_dns(dnsrr_set, "delete", resolver)
 
-    log.info("Request to finalize the order (all chalenge have been completed)")
+    log.info("Request to finalize the order (all challenges have been completed)")
     csr_der = _base64(_openssl("req", ["-in", config["acmednstiny"]["CSRFile"],
                                        "-outform", "DER"]))
     http_response, result = _send_signed_request(order["finalize"], {"csr": csr_der})
