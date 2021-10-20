@@ -2,13 +2,25 @@
 # pylint: disable=multiple-imports
 """ACME client to met DNS challenge and receive TLS certificate"""
 import argparse, base64, binascii, configparser, copy, hashlib, ipaddress, json, logging
-import re, sys, subprocess, time
+import os, re, sys, subprocess, time
 import requests
 import dns.exception, dns.query, dns.name, dns.resolver, dns.rrset, dns.tsigkeyring, dns.update
 
 LOGGER = logging.getLogger('acme_dns_tiny')
 LOGGER.addHandler(logging.StreamHandler())
 
+# Get API tokens from environment variables
+do_token = os.getenv('DO_KEY')
+if do_token == '' :
+    print("Digital Ocean API key not defined in env variable DO_KEY")
+    sys.exit(1)
+
+# Set base URL for API
+do_base = 'https://api.digitalocean.com/v2/'
+
+# Set headers for Digital Ocean
+do_headers = {'Content-Type': 'application/json',
+              'Authorization': f'Bearer {do_token}'}
 
 def _base64(text):
     """Encodes string as base64 as specified in the ACME RFC."""
@@ -25,11 +37,11 @@ def _openssl(command, options, communicate=None):
         raise IOError("OpenSSL Error: {0}".format(err))
     return out
 
-
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 def get_crt(config, log=LOGGER):
     """Get ACME certificate by resolving DNS challenge."""
 
+    '''
     def _update_dns(rrset, action, resolver):
         """Updates DNS resource by adding or deleting resource."""
         algorithm = dns.name.from_text("{0}".format(config["TSIGKeyring"]["Algorithm"].lower()))
@@ -55,6 +67,55 @@ def get_crt(config, log=LOGGER):
         if response is None:
             raise RuntimeError("Unable to {0} DNS resource to {1}".format(action, rrset.name))
         return response
+    '''
+    def create_txt(domain,keydigest64):
+        log.info('Creating TXT record on Digital Ocean')
+        split_domain=domain.split(".",2)
+        chal_domain=split_domain[0]+"."+split_domain[1]
+        base_domain=split_domain[2]
+        api_url = f'{do_base}domains/{base_domain}/records'
+
+        txt_params = {'type' : 'TXT', 'name' : f'{chal_domain}',
+            'data' : f'{keydigest64}', 'ttl' : 1800}
+        txt_add = requests.post(api_url, headers=do_headers, json=txt_params)
+
+        if 'domain_record' not in txt_add.json():
+            log.warning(f'Adding TXT record failed\n{txt_add.text}')
+            sys.exit(4)
+        else:    
+            txt_id=txt_add.json()['domain_record']['id']
+            log.info(f'Created TXT record ID: {txt_id}')
+            return(txt_id)
+
+    def test_txt(domain):
+        log.info(f'Testing TXT record for {domain}')
+        txt_propagated='false'
+        wait_time=10
+        dns_resolver=dns.resolver.Resolver()
+        while txt_propagated == 'false':
+            try:
+                dnslookup = dns_resolver.resolve(f'{domain}', 'TXT')
+            except Exception as e:
+                log.info(e)
+                dnslookup = ''
+            if len(dnslookup):
+                log.info(f'TXT record found: {dnslookup}')
+                txt_propagated='true'
+            else:
+                log.info(f'Waiting for {wait_time}')
+                time.sleep(wait_time)
+                wait_time=wait_time*2
+                if wait_time > 320:
+                    log.warning('Waited too long for DNS')
+                    sys.exit(5)
+
+    def delete_txt(txt_id,domain):
+        base_domain=domain.split(".",2)[2]
+        log.info('Deleting TXT record')
+        api_url = f'{do_base}domains/{base_domain}/records/{txt_id}'
+
+        requests.delete(api_url, headers=do_headers)
+
 
     def _send_signed_request(url, payload, extra_headers=None):
         """Sends signed requests to ACME server."""
@@ -115,33 +176,6 @@ def get_crt(config, log=LOGGER):
                 domains.add(san[4:])
     if len(domains) == 0:  # pylint: disable=len-as-condition
         raise ValueError("Didn't find any domain to validate in the provided CSR.")
-
-    log.info("Configure DNS client tools.")
-    # That keyring is used to authenticate with the DNS server, it needs to be safely kept
-    private_keyring = dns.tsigkeyring.from_text({config["TSIGKeyring"]["KeyName"]:
-                                                 config["TSIGKeyring"]["KeyValue"]})
-    resolver = dns.resolver.Resolver(configure=False)
-    resolver.retry_servfail = True
-    nameserver = []
-    try:
-        ipaddress.ip_address(config["DNS"]["Host"])
-        nameserver.append(config["DNS"]["Host"])
-    except ValueError:
-        log.debug("  - Configured DNS Host value is not a valid IP address, "
-                  "try to resolve IP address by requesting system DNS servers.")
-        try:
-            nameserver += [ipv6_rrset.to_text() for ipv6_rrset
-                           in dns.resolver.query(config["DNS"]["Host"], rdtype="AAAA")]
-        except dns.exception.DNSException:
-            log.debug(("  - IPv6 addresses not found for the configured DNS Host."))
-        try:
-            nameserver += [ipv4_rrset.to_text() for ipv4_rrset
-                           in dns.resolver.query(config["DNS"]["Host"], rdtype="A")]
-        except dns.exception.DNSException:
-            log.debug("  - IPv4 addresses not found for the configured DNS Host.")
-    if not nameserver:
-        raise ValueError("Unable to resolve any IP address for the configured DNS Host name")
-    resolver.nameservers = nameserver
 
     log.info("Get private signature from account key.")
     accountkey = _openssl("rsa", ["-in", config["acmednstiny"]["AccountKeyFile"],
@@ -252,49 +286,9 @@ def get_crt(config, log=LOGGER):
         challenge = challenges[0]
         keyauthorization = challenge["token"] + "." + jwk_thumbprint
         keydigest64 = _base64(hashlib.sha256(keyauthorization.encode("utf8")).digest())
-        dnsrr_domain = "_acme-challenge.{0}.".format(domain)
-        try:  # a CNAME resource can be used for advanced TSIG configuration
-            # Note: the CNAME target has to be of "non-CNAME" type (recursion isn't managed)
-            dnsrr_domain = [response.to_text() for response
-                            in resolver.query(dnsrr_domain, rdtype="CNAME")][0]
-            log.info("  - A CNAME resource has been found for this domain, will install TXT on %s",
-                     dnsrr_domain)
-        except dns.exception.DNSException as dnsexception:
-            log.debug(("  - No CNAME resource has been found for this domain (%s), will "
-                       "install TXT directly on %s"), type(dnsexception).__name__, dnsrr_domain)
-        dnsrr_set = dns.rrset.from_text(dnsrr_domain, config["DNS"].getint("TTL"),
-                                        "IN", "TXT", '"{0}"'.format(keydigest64))
-        try:
-            _update_dns(dnsrr_set, "add", resolver)
-        except dns.exception.DNSException as exception:
-            raise ValueError("Error updating DNS records: {0} : {1}"
-                             .format(type(exception).__name__, str(exception))) from exception
-
-        log.info("Wait for 1 TTL (%s seconds) to ensure DNS cache is cleared.",
-                 config["DNS"].getint("TTL"))
-        time.sleep(config["DNS"].getint("TTL"))
-        challenge_verified = False
-        number_check_fail = 1
-        while challenge_verified is False:
-            try:
-                log.debug(('Self test (try: %s): Check resource with value "%s" exits on '
-                           'nameservers: %s'), number_check_fail, keydigest64,
-                          resolver.nameservers)
-                for response in resolver.query(dnsrr_domain, rdtype="TXT").rrset:
-                    log.debug("  - Found value %s", response.to_text())
-                    challenge_verified = (challenge_verified
-                                          or response.to_text() == '"{0}"'.format(keydigest64))
-            except dns.exception.DNSException as dnsexception:
-                log.debug(
-                    "  - Will retry as a DNS error occurred while checking challenge: %s : %s",
-                    type(dnsexception).__name__, dnsexception)
-            finally:
-                if challenge_verified is False:
-                    if number_check_fail >= 10:
-                        raise ValueError("Error checking challenge, value not found: {0}"
-                                         .format(keydigest64))
-                    number_check_fail = number_check_fail + 1
-                    time.sleep(config["DNS"].getint("TTL"))
+        dnsrr_domain = f'_acme-challenge.{domain}'
+        txt_id=create_txt(dnsrr_domain,keydigest64)
+        test_txt(dnsrr_domain)
 
         log.info("Asking ACME server to validate challenge.")
         http_response, result = _send_signed_request(challenge["url"], {})
@@ -316,7 +310,7 @@ def get_crt(config, log=LOGGER):
                     raise ValueError("Challenge for domain {0} did not pass: {1}".format(
                         domain, challenge_status))
         finally:
-            _update_dns(dnsrr_set, "delete", resolver)
+            delete_txt(txt_id,dnsrr_domain)
 
     log.info("Request to finalize the order (all challenges have been completed)")
     csr_der = _base64(_openssl("req", ["-in", config["acmednstiny"]["CSRFile"],
@@ -388,9 +382,7 @@ from the configuration file.")
     if args.csr:
         config.set("acmednstiny", "csrfile", args.csr)
 
-    if (set(["accountkeyfile", "csrfile", "acmedirectory"]) - set(config.options("acmednstiny"))
-            or set(["keyname", "keyvalue", "algorithm"]) - set(config.options("TSIGKeyring"))
-            or set(["zone", "host", "port", "ttl"]) - set(config.options("DNS"))):
+    if (set(["accountkeyfile", "csrfile", "acmedirectory"]) - set(config.options("acmednstiny"))):
         raise ValueError("Some required settings are missing.")
 
     LOGGER.setLevel(args.verbose or args.quiet or logging.INFO)
