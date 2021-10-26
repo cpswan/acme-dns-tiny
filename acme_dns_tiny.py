@@ -303,6 +303,8 @@ def get_crt(config, log=LOGGER):
                         http_response.status_code, challenge_status))
                 if challenge_status["status"] == "pending":
                     time.sleep(2)
+                elif challenge_status["status"] == "processing":
+                    time.sleep(2)
                 elif challenge_status["status"] == "valid":
                     log.info("ACME has verified challenge for domain: %s", domain)
                     break
