@@ -41,33 +41,6 @@ def _openssl(command, options, communicate=None):
 def get_crt(config, log=LOGGER):
     """Get ACME certificate by resolving DNS challenge."""
 
-    '''
-    def _update_dns(rrset, action, resolver):
-        """Updates DNS resource by adding or deleting resource."""
-        algorithm = dns.name.from_text("{0}".format(config["TSIGKeyring"]["Algorithm"].lower()))
-        dns_update = dns.update.Update(config["DNS"]["zone"],
-                                       keyring=private_keyring, keyalgorithm=algorithm)
-        if action == "add":
-            dns_update.add(rrset.name, rrset)
-        elif action == "delete":
-            dns_update.delete(rrset.name, rrset)
-        # Try each IP address found for the configured DNS Host to apply the DNS resource update
-        response = None
-        for nameserver in resolver.nameservers:
-            try:
-                response = dns.query.tcp(dns_update, nameserver,
-                                         port=config.getint("DNS", "Port"))
-            # pylint: disable=broad-except
-            except Exception as exception:
-                log.debug("Unable to %s DNS resource on server with IP %s, try again with "
-                          "next available IP. Error detail: %s", action, nameserver, exception)
-                response = None
-            if response is not None:
-                break
-        if response is None:
-            raise RuntimeError("Unable to {0} DNS resource to {1}".format(action, rrset.name))
-        return response
-    '''
     def create_txt(domain,keydigest64):
         log.info('Creating TXT record on Digital Ocean')
         split_domain=domain.split(".",2)
@@ -115,7 +88,6 @@ def get_crt(config, log=LOGGER):
         api_url = f'{do_base}domains/{base_domain}/records/{txt_id}'
 
         requests.delete(api_url, headers=do_headers)
-
 
     def _send_signed_request(url, payload, extra_headers=None):
         """Sends signed requests to ACME server."""
