@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # pylint: disable=multiple-imports
 """ACME client to met DNS challenge and receive TLS certificate"""
-import argparse, base64, binascii, configparser, copy, hashlib, ipaddress, json, logging
+import argparse, base64, binascii, configparser, copy, hashlib, json, logging
 import os, re, sys, subprocess, time
 import requests
-import dns.exception, dns.query, dns.name, dns.resolver, dns.rrset, dns.tsigkeyring, dns.update
+import dns.resolver
 
 LOGGER = logging.getLogger('acme_dns_tiny')
 LOGGER.addHandler(logging.StreamHandler())
